@@ -1,0 +1,183 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Madurai Multi-Day Itinerary Planner</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/index.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/genai": "https://esm.sh/@google/genai@^0.7.0"
+        }
+      }
+    </script>
+  </head>
+  <body data-theme="light">
+    <!-- Main container for the map and related UI elements -->
+    <div id="map-container" class="map-container">
+      <div id="map"></div>
+      <div id="map-loader" class="map-loader hidden">
+        <div class="spinner"></div>
+      </div>
+
+      <!-- Control panel for trip planning -->
+      <div id="control-panel" class="control-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Madurai Itinerary Planner</h2>
+          <div class="panel-header-controls">
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+              <i class="fas fa-moon"></i>
+            </button>
+            <button id="collapse-panel" class="collapse-button" aria-label="Collapse panel">
+               <i class="fas fa-chevron-left"></i>
+            </button>
+          </div>
+        </div>
+        <div class="panel-content">
+          <div class="trip-inputs">
+            <div class="input-group">
+              <label for="days-input">Number of Days</label>
+              <input
+                type="number"
+                id="days-input"
+                value="2"
+                min="1"
+                max="10"
+                aria-label="Number of days for the trip"
+              />
+            </div>
+            <div class="input-group">
+              <label>Popular Places of Interest</label>
+              <div class="poi-chips" id="poi-chips-container">
+                <!-- Chips will be inserted here by the script -->
+              </div>
+            </div>
+            <div class="input-group">
+              <label for="custom-poi-input">Add other places (optional)</label>
+              <input
+                type="text"
+                id="custom-poi-input"
+                placeholder="e.g., Puthu Mandapam"
+              />
+            </div>
+          </div>
+          <div class="action-buttons">
+            <button id="generate" class="generate-button">
+              <span class="button-text">Generate Itinerary</span>
+              <div class="spinner"></div>
+            </button>
+          </div>
+          <div class="error" id="error-message"></div>
+
+          <!-- Map Customization Settings -->
+          <div class="map-settings">
+            <div class="setting-divider"></div>
+            <div class="input-group">
+              <label>Map Options</label>
+              <div class="setting-row">
+                <span>Enable Zoom Controls</span>
+                <label class="switch">
+                  <input type="checkbox" id="zoom-control-toggle">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+              <div class="setting-row">
+                <span>Enable Greedy Gestures</span>
+                <label class="switch">
+                  <input type="checkbox" id="gesture-handling-toggle" checked>
+                  <span class="slider round"></span>
+                </label>
+              </div>
+            </div>
+            <!-- Container for Day Route Toggles -->
+            <div id="day-toggles-container" class="hidden">
+               <!-- Day toggles will be inserted here by the script -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+       <!-- Button to show the control panel when it's collapsed -->
+      <button id="show-controls-button" class="show-controls-button hidden" aria-label="Show controls">
+        <i class="fas fa-sliders-h"></i>
+      </button>
+
+      <!-- Button to reset the map and clear current results -->
+      <button id="reset" class="reset-button" aria-label="Reset plan">
+        <i class="fas fa-undo"></i>
+      </button>
+
+      <!-- Button to toggle the itinerary carousel view -->
+      <button id="toggle-carousel-button" class="toggle-carousel-button hidden" aria-label="Toggle itinerary view">
+        <i class="fas fa-chevron-down"></i>
+      </button>
+      
+      <!-- Carousel for location details at the bottom -->
+      <div id="location-carousel" class="location-carousel hidden">
+        <div class="carousel-header">
+          <h3 class="carousel-title">Your Itinerary</h3>
+          <div class="carousel-actions">
+            <button id="share-plan" class="secondary-button hidden">
+              <i class="fas fa-share-alt"></i> Share
+            </button>
+            <button id="export-plan" class="secondary-button hidden">
+              <i class="fas fa-download"></i> Export
+            </button>
+          </div>
+        </div>
+        <div id="cards-container" class="cards-container">
+          <!-- Itinerary day headers and location cards will be dynamically inserted here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Semi-transparent overlay for mobile contexts (if needed in future) -->
+    <div class="map-overlay" id="map-overlay"></div>
+
+    <div id="spinner" class="hidden spinner"></div>
+
+    <!-- Third-party library for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Google Maps JavaScript API script -->
+    <script>
+      // Script to load the Google Maps JavaScript API asynchronously.
+      ((g) => {
+        var h,
+          a,
+          k,
+          p = "The Google Maps JavaScript API",
+          c = "google",
+          l = "importLibrary",
+          q = "__ib__",
+          m = document,
+          b = window;
+        b = b[c] || (b[c] = {});
+        var d = b.maps || (b.maps = {}),
+          r = new Set(),
+          e = new URLSearchParams(),
+          u = () =>
+            h ||
+            (h = new Promise(async (f, n) => {
+              await (a = m.createElement("script"));
+              e.set("libraries", [...r] + "");
+              for (k in g)
+                e.set(
+                  k.replace(/[A-Z]/g, (t) => "_" + t[0].toLowerCase()),
+                  g[k],
+                );
+              e.set("callback", c + ".maps." + q);
+              a.src = `https://maps.${c}apis.com/maps/api/js?` + e;
+              d[q] = f;
+              a.onerror = () => (h = n(Error(p + " could not load.")));
+              a.nonce = m.querySelector("script[nonce]")?.nonce || "";
+              m.head.append(a);
+            }));
+        d[l]
+          ? console.warn(p + " only loads once. Ignoring:", g)
+          : (d[l] = (f, ...n) => r.add(f) && u().then(() => d[l](f, ...n)));
+      })({ key: "AIzaSyCNXwnZayI7hxvA3huOB9d82myo1L-7j9Y", v: "weekly" });
+    </script>
+  </body>
+</html>
