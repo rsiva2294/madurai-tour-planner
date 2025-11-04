@@ -1,3 +1,4 @@
+
 @import url(https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css);
 
 /* --- THEME VARIABLES --- */
@@ -12,7 +13,7 @@
   --accent-secondary: #e2f1ff;
   --border-color: #e2e8f0;
   --shadow-color: rgba(0, 0, 0, 0.08);
-  --carousel-height: 280px;
+  --carousel-height: 330px;
 }
 
 :root[data-theme='dark'] {
@@ -537,6 +538,39 @@ input:checked + .slider:before {
     border-radius: 6px;
 }
 
+.card-travel-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background-color: var(--bg-secondary);
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+.card-travel-info i {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.travel-separator {
+  width: 1px;
+  height: 12px;
+  background-color: var(--border-color);
+}
+
+.travel-origin {
+  font-style: italic;
+  margin-left: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
 .card-description {
   font-size: 13px;
   color: var(--text-secondary);
@@ -544,14 +578,12 @@ input:checked + .slider:before {
   flex-grow: 1;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   margin-bottom: 12px;
 }
 
 .card-gmaps-link {
   display: inline-block;
-  margin-top: auto; /* Pushes button to the bottom */
   padding: 8px 12px;
   background-color: var(--bg-secondary);
   color: var(--text-primary);
@@ -688,7 +720,7 @@ input:checked + .slider:before {
 /* --- RESPONSIVE STYLES --- */
 @media (max-width: 768px) {
   :root {
-    --carousel-height: 260px;
+    --carousel-height: 310px;
   }
   
   .map-container-controls-open { padding-left: 0; }

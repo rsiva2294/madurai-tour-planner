@@ -4,7 +4,7 @@
     <title>Madurai Multi-Day Itinerary Planner</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="/index.css" />
+    <link rel="stylesheet" href="index.css" />
     <script type="importmap">
       {
         "imports": {
@@ -89,6 +89,13 @@
                   <span class="slider round"></span>
                 </label>
               </div>
+               <div class="setting-row">
+                <span>Optimize Daily Routes</span>
+                <label class="switch">
+                  <input type="checkbox" id="optimize-route-toggle">
+                  <span class="slider round"></span>
+                </label>
+              </div>
             </div>
             <!-- Container for Day Route Toggles -->
             <div id="day-toggles-container" class="hidden">
@@ -140,6 +147,11 @@
     <!-- Third-party library for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
+    <!-- Set API key for script access -->
+    <script>
+      window.GOOGLE_MAPS_API_KEY = "AIzaSyCmKPfqghHeL0U5n70xENammTeTl8ngHrw";
+    </script>
+
     <!-- Google Maps JavaScript API script -->
     <script>
       // Script to load the Google Maps JavaScript API asynchronously.
@@ -177,7 +189,7 @@
         d[l]
           ? console.warn(p + " only loads once. Ignoring:", g)
           : (d[l] = (f, ...n) => r.add(f) && u().then(() => d[l](f, ...n)));
-      })({ key: "AIzaSyCNXwnZayI7hxvA3huOB9d82myo1L-7j9Y", v: "weekly" });
+      })({ key: "AIzaSyCmKPfqghHeL0U5n70xENammTeTl8ngHrw", v: "weekly", language: "en" });
     </script>
   </body>
 </html>

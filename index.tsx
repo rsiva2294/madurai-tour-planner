@@ -10,6 +10,13 @@ declare const google: any;
 // Declare jsPDF from the global scope (loaded via script tag)
 declare const jspdf: any;
 
+// Add global declaration for the API key
+declare global {
+  interface Window {
+    GOOGLE_MAPS_API_KEY: string;
+  }
+}
+
 const { Map } = await google.maps.importLibrary('maps');
 const { LatLngBounds } = await google.maps.importLibrary('core');
 const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary(
@@ -297,6 +304,9 @@ const zoomControlToggle = document.querySelector(
 ) as HTMLInputElement;
 const gestureHandlingToggle = document.querySelector(
   '#gesture-handling-toggle',
+) as HTMLInputElement;
+const optimizeRouteToggle = document.querySelector(
+  '#optimize-route-toggle',
 ) as HTMLInputElement;
 const controlPanel = document.querySelector('#control-panel') as HTMLDivElement;
 const collapsePanelButton = document.querySelector(
@@ -726,11 +736,10 @@ async function sendText() {
     // Sort steps logically by day and sequence
     aiItinerarySteps.sort((a, b) => a.day - b.day || a.sequence - b.sequence);
 
-    // Process the itinerary, using local data first, then Places API as fallback
+    // STEP 1: Process and geocode all locations from the AI response
+    let processedLocations = [];
     for (const step of aiItinerarySteps) {
-      let finalLocationData;
-
-      // PATH 1: Try to find a match in the high-quality local data
+      let locationData;
       const placeData = MADURAI_PLACES_DATA.find(
         (p) =>
           p.place_name.toLowerCase() === step.place_name.toLowerCase() ||
@@ -738,52 +747,60 @@ async function sendText() {
       );
 
       if (placeData) {
-        finalLocationData = {
+        locationData = {
+          ...step,
           name: placeData.place_name,
           description: placeData.description,
           lat: parseFloat(placeData.latitude),
           lng: parseFloat(placeData.longitude),
           timings: placeData.timings,
           closed_days: placeData.closed_days,
-          time: step.time,
-          duration: step.duration,
-          sequence: step.sequence,
-          day: step.day,
         };
       } else {
-        // PATH 2: If not found, use the Places API as a fallback
         console.warn(
-          `AI suggested place "${step.place_name}" not found in local data. Using Places API as fallback.`,
+          `AI suggested place "${step.place_name}" not found in local data. Using Places API.`,
         );
         try {
           const geocodedPlace = await geocodeLocation(step.place_name);
-          finalLocationData = {
+          locationData = {
+            ...step,
             name: geocodedPlace.name,
-            description: `An additional location for your itinerary. Address: ${
+            description: `Address: ${
               geocodedPlace.address || 'Not available'
             }`,
             lat: geocodedPlace.lat,
             lng: geocodedPlace.lng,
-            time: step.time,
-            duration: step.duration,
-            sequence: step.sequence,
-            day: step.day,
           };
         } catch (geoError) {
           handleError(
             geoError,
             `Could not find a map location for "${step.place_name}". It will be skipped.`,
           );
-          continue; // Skip this step if geocoding also fails
+          continue; // Skip this step if geocoding fails
         }
       }
-      await setPin(finalLocationData);
+      processedLocations.push(locationData);
     }
 
-    // Draw routes between the now-accurate pins
+    // STEP 2: Optimize routes if the user has enabled the feature
+    let finalItineraryPlan = processedLocations;
+    if (optimizeRouteToggle.checked && processedLocations.length > 0) {
+      const spinnerSpan = generateButton.querySelector('.button-text');
+      if (spinnerSpan) spinnerSpan.textContent = 'Optimizing Routes...';
+      finalItineraryPlan = await optimizeItineraryByDay(processedLocations);
+      if (spinnerSpan) spinnerSpan.textContent = 'Generate Itinerary';
+    }
+
+    // STEP 3: Set map pins for the final (potentially optimized) itinerary
+    for (const location of finalItineraryPlan) {
+      setPin(location);
+    }
+
+    // STEP 4: Calculate final travel distances and draw routes
+    dayPlanItinerary = await calculateDistancesAndTimes(dayPlanItinerary);
     drawAllRoutes();
 
-    // Render the UI with the final, accurate itinerary
+    // STEP 5: Render the UI
     if (dayPlanItinerary.length > 0) {
       renderCarousel();
       renderDayToggles();
@@ -824,7 +841,7 @@ async function sendText() {
   }
 }
 
-async function setPin(args) {
+function setPin(args) {
   try {
     if (isNaN(Number(args.lat)) || isNaN(Number(args.lng))) {
       throw new Error(`Invalid coordinates for location: ${args.name}`);
@@ -851,6 +868,9 @@ async function setPin(args) {
       ...args,
       position: new google.maps.LatLng(point),
       marker,
+      distanceFromPrev: '',
+      durationFromPrev: '',
+      fromText: '',
     };
     dayPlanItinerary.push(locationInfo);
   } catch (e) {
@@ -859,6 +879,215 @@ async function setPin(args) {
       error: e,
     });
   }
+}
+
+/**
+ * Fetches route details between two points using the Routes API.
+ * @param {object} originLatLng - The origin coordinates {lat, lng}.
+ * @param {object} destinationLatLng - The destination coordinates {lat, lng}.
+ * @returns {Promise<object|null>} A promise that resolves to the route details or null.
+ */
+async function fetchRouteDetails(originLatLng, destinationLatLng) {
+  const requestBody = {
+    origin: {
+      location: {
+        latLng: {
+          latitude: originLatLng.lat,
+          longitude: originLatLng.lng,
+        },
+      },
+    },
+    destination: {
+      location: {
+        latLng: {
+          latitude: destinationLatLng.lat,
+          longitude: destinationLatLng.lng,
+        },
+      },
+    },
+    travelMode: 'DRIVE',
+    languageCode: 'en-US',
+    units: 'METRIC',
+  };
+
+  try {
+    const response = await fetch(
+      'https://routes.googleapis.com/directions/v2:computeRoutes',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': window.GOOGLE_MAPS_API_KEY,
+          'X-Goog-FieldMask':
+            'routes.duration,routes.distanceMeters,routes.localizedValues',
+        },
+        body: JSON.stringify(requestBody),
+      },
+    );
+
+    if (!response.ok) {
+      const errorBody = await response.json();
+      console.error('Routes API Error:', errorBody);
+      throw new Error(`Routes API request failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (data.routes && data.routes.length > 0) {
+      return data.routes[0];
+    }
+    return null;
+  } catch (e) {
+    console.error('Routes API request failed', e);
+    return null;
+  }
+}
+
+async function calculateDistancesAndTimes(itinerary) {
+  const meenakshiTemple = MADURAI_PLACES_DATA.find((p) =>
+    p.place_name.includes('Meenakshi'),
+  );
+  const meenakshiTempleCoords = {
+    lat: parseFloat(meenakshiTemple.latitude),
+    lng: parseFloat(meenakshiTemple.longitude),
+  };
+
+  for (let i = 0; i < itinerary.length; i++) {
+    const currentItem = itinerary[i];
+    let originLatLng;
+    let fromText;
+
+    const isFirstOfTheDay = i === 0 || itinerary[i - 1].day !== currentItem.day;
+
+    if (isFirstOfTheDay) {
+      originLatLng = meenakshiTempleCoords;
+      fromText = 'from Meenakshi Temple';
+    } else {
+      originLatLng = {
+        lat: itinerary[i - 1].position.lat(),
+        lng: itinerary[i - 1].position.lng(),
+      };
+      fromText = `from ${itinerary[i - 1].name}`;
+    }
+
+    const destinationLatLng = {
+      lat: currentItem.position.lat(),
+      lng: currentItem.position.lng(),
+    };
+
+    const route = await fetchRouteDetails(originLatLng, destinationLatLng);
+
+    if (route) {
+      currentItem.distanceFromPrev =
+        route.localizedValues?.distance?.text ??
+        `${(route.distanceMeters / 1000).toFixed(1)} km`;
+      currentItem.durationFromPrev =
+        route.localizedValues?.duration?.text ??
+        `${Math.round(parseInt(route.duration.slice(0, -1), 10) / 60)} mins`;
+    } else {
+      currentItem.distanceFromPrev = 'N/A';
+      currentItem.durationFromPrev = 'N/A';
+    }
+    currentItem.fromText = fromText;
+  }
+  return itinerary;
+}
+
+/**
+ * Creates a duration matrix for a given list of locations for route optimization.
+ * @param {Array<object>} locations - The locations for a single day.
+ * @returns {Promise<Array<Array<number>>>} A 2D array of travel durations in seconds.
+ */
+async function createDurationMatrix(locations) {
+  const size = locations.length;
+  const matrix = Array(size)
+    .fill(null)
+    .map(() => Array(size).fill(Infinity));
+  const promises = [];
+
+  for (let i = 0; i < size; i++) {
+    for (let j = 0; j < size; j++) {
+      if (i === j) {
+        matrix[i][j] = 0;
+      } else {
+        const origin = { lat: locations[i].lat, lng: locations[i].lng };
+        const destination = { lat: locations[j].lat, lng: locations[j].lng };
+        promises.push(
+          fetchRouteDetails(origin, destination).then((route) => {
+            if (route && route.duration) {
+              matrix[i][j] = parseInt(route.duration.slice(0, -1), 10);
+            }
+          }),
+        );
+      }
+    }
+  }
+
+  await Promise.all(promises);
+  return matrix;
+}
+
+/**
+ * Reorders the itinerary for each day to find the most efficient route.
+ * @param {Array<object>} itinerary - The full, processed itinerary.
+ * @returns {Promise<Array<object>>} The optimized itinerary.
+ */
+async function optimizeItineraryByDay(itinerary) {
+  const locationsByDay = itinerary.reduce((acc, loc) => {
+    const day = loc.day;
+    if (!acc[day]) acc[day] = [];
+    acc[day].push(loc);
+    return acc;
+  }, {});
+
+  const optimizedPlan = [];
+
+  for (const day in locationsByDay) {
+    let dayLocations = locationsByDay[day];
+
+    if (dayLocations.length > 2) {
+      const durationMatrix = await createDurationMatrix(dayLocations);
+
+      // Simple greedy (nearest neighbor) algorithm
+      const tour = [];
+      const startNode = dayLocations[0]; // Keep the first stop fixed
+      tour.push(startNode);
+      let remaining = dayLocations.slice(1);
+
+      while (remaining.length > 0) {
+        const lastInTour = tour[tour.length - 1];
+        const lastInTourIndex = dayLocations.indexOf(lastInTour);
+        let nearestIndex = -1;
+        let minDuration = Infinity;
+
+        remaining.forEach((location) => {
+          const locationIndex = dayLocations.indexOf(location);
+          const duration = durationMatrix[lastInTourIndex][locationIndex];
+          if (duration < minDuration) {
+            minDuration = duration;
+            nearestIndex = dayLocations.indexOf(location);
+          }
+        });
+
+        if (nearestIndex !== -1) {
+          const nearestNode = dayLocations[nearestIndex];
+          tour.push(nearestNode);
+          remaining = remaining.filter((loc) => loc !== nearestNode);
+        } else {
+          // Fallback if no route is found, just add the rest
+          tour.push(...remaining);
+          break;
+        }
+      }
+      dayLocations = tour;
+    }
+    optimizedPlan.push(...dayLocations);
+  }
+
+  // Re-assign sequence numbers after optimization
+  return optimizedPlan.map((loc, index) => ({
+    ...loc,
+    sequence: index + 1, // This is a temporary sequence for ordering, might need adjustment if we want per-day sequence
+  }));
 }
 
 async function drawAllRoutes() {
@@ -992,12 +1221,24 @@ function renderCarousel() {
       item.name,
     )}&query_ll=${item.lat},${item.lng}`;
 
+    const travelInfoHtml = item.durationFromPrev
+      ? `
+      <div class="card-travel-info">
+        <i class="fas fa-car"></i>
+        <span>${item.durationFromPrev}</span>
+        <span class="travel-separator"></span>
+        <span>${item.distanceFromPrev}</span>
+        <span class="travel-origin">(${item.fromText})</span>
+      </div>`
+      : '';
+
     card.innerHTML = `
       <div class="card-header">
         <div class="card-title">${item.name}</div>
         <div class="card-time">${item.time}</div>
       </div>
       <div class="card-description">${item.description}</div>
+      ${travelInfoHtml}
       <a href="${googleMapsUrl}" target="_blank" rel="noopener noreferrer" class="card-gmaps-link">
         <i class="fas fa-map-marker-alt"></i> View on Google Maps
       </a>
@@ -1115,7 +1356,7 @@ function exportDayPlan() {
   y += 15;
 
   let currentDay = 0;
-  dayPlanItinerary.forEach((item) => {
+  dayPlanItinerary.forEach((item, index) => {
     if (item.day !== currentDay) {
       currentDay = item.day;
       checkPageEnd(20);
@@ -1131,7 +1372,14 @@ function exportDayPlan() {
     const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
       item.name,
     )}&query_ll=${item.lat},${item.lng}`;
-    const titlePrefix = `${item.sequence}. `;
+    
+    // Use a consistent counter for the sequence in the PDF
+    const sequenceInDay =
+      dayPlanItinerary
+        .slice(0, index + 1)
+        .filter((loc) => loc.day === item.day).length;
+    const titlePrefix = `${sequenceInDay}. `;
+
     const titleSuffix = ` (${item.time})`;
 
     doc.text(titlePrefix, margin, y);
@@ -1146,6 +1394,18 @@ function exportDayPlan() {
     doc.setTextColor(0); // Reset color
     doc.text(titleSuffix, margin + prefixWidth + nameWidth, y);
     y += 6;
+
+    if (item.durationFromPrev) {
+      checkPageEnd(10);
+      doc.setFontSize(9).setFont(undefined, 'normal').setTextColor(100);
+      doc.text(
+        `🚗 ${item.durationFromPrev} (${item.distanceFromPrev}) ${item.fromText}`,
+        margin,
+        y,
+      );
+      doc.setTextColor(0);
+      y += 6;
+    }
 
     doc.setFontSize(10).setFont(undefined, 'normal');
     const descLines = doc.splitTextToSize(item.description, usableWidth);
@@ -1187,11 +1447,14 @@ async function shareDayPlan() {
       currentDay = item.day;
       shareText += `--- Day ${currentDay} ---\n`;
     }
-    shareText += `- ${item.time}: ${item.name}\n`;
+    shareText += `- ${item.time}: ${item.name}`;
+    if (item.durationFromPrev) {
+      shareText += ` (${item.durationFromPrev} drive)`;
+    }
+    shareText += '\n';
   });
 
-  shareText +=
-    '\nPlan created with the Madurai Itinerary Planner.';
+  shareText += '\nPlan created with the Madurai Itinerary Planner.';
 
   try {
     await navigator.share({
