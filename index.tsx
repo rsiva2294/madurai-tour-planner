@@ -40,7 +40,7 @@ const MADURAI_PLACES_DATA = [
     latitude: '9.919349',
     longitude: '78.117514',
     distance_km: '0.2',
-    category: 'Temple',
+    category: 'Spiritual',
   },
   {
     place_name: 'Thirumalai Nayakar Mahal',
@@ -72,7 +72,7 @@ const MADURAI_PLACES_DATA = [
     latitude: '9.910443',
     longitude: '78.148201',
     distance_km: '3.03',
-    category: 'Temple',
+    category: 'Spiritual',
   },
   {
     place_name: 'Gandhi Memorial Museum',
@@ -106,7 +106,7 @@ const MADURAI_PLACES_DATA = [
     latitude: '9.914419',
     longitude: '78.114201',
     distance_km: '1.02',
-    category: 'Temple',
+    category: 'Spiritual',
   },
   {
     place_name: 'Alagarkoil Temple',
@@ -123,7 +123,7 @@ const MADURAI_PLACES_DATA = [
     latitude: '10.074848',
     longitude: '78.213055',
     distance_km: '19.52',
-    category: 'Temple',
+    category: 'Spiritual',
   },
   {
     place_name: 'Tirupparankunram Murugan Temple',
@@ -139,7 +139,7 @@ const MADURAI_PLACES_DATA = [
     latitude: '9.880105',
     longitude: '78.071356',
     distance_km: '7.06',
-    category: 'Temple',
+    category: 'Spiritual',
   },
   {
     place_name: "St. Mary's Cathedral",
@@ -155,7 +155,7 @@ const MADURAI_PLACES_DATA = [
     latitude: '9.913262',
     longitude: '78.125655',
     distance_km: '0.81',
-    category: 'Religious - Church',
+    category: 'Spiritual',
   },
   {
     place_name: 'Kazimar Big Mosque (Periya Pallivasal)',
@@ -171,7 +171,7 @@ const MADURAI_PLACES_DATA = [
     latitude: '9.912816',
     longitude: '78.114229',
     distance_km: '4.57',
-    category: 'Religious - Mosque',
+    category: 'Spiritual',
   },
   {
     place_name: 'Keeladi Museum',
@@ -204,7 +204,7 @@ const MADURAI_PLACES_DATA = [
     latitude: '10.094297',
     longitude: '78.223311',
     distance_km: '22.38',
-    category: 'Temple',
+    category: 'Spiritual',
   },
   {
     place_name: 'Samanar Hill (Keelakuyilkudi)',
@@ -236,7 +236,7 @@ const MADURAI_PLACES_DATA = [
     latitude: '9.9508',
     longitude: '78.207100',
     distance_km: '15.5',
-    category: 'Temple',
+    category: 'Spiritual',
   },
   {
     place_name: 'Puthu Mandapam',
@@ -253,7 +253,6 @@ const MADURAI_PLACES_DATA = [
 // --- CONSTANTS ---
 const MADURAI_COORDS = { lat: 9.9252, lng: 78.1198 };
 const LIGHT_MAP_ID = '4504f8b37365c3d0';
-const DARK_MAP_ID = '16c4342273574950'; // A standard dark mode map style
 const ROUTE_COLORS = [
   '#4285F4',
   '#DB4437',
@@ -286,19 +285,12 @@ const sharePlanButton = document.querySelector(
 ) as HTMLButtonElement;
 const mapContainer = document.querySelector('#map-container') as HTMLDivElement;
 const mapLoader = document.querySelector('#map-loader') as HTMLDivElement;
-const mapOverlay = document.querySelector('#map-overlay') as HTMLDivElement;
 const spinner = document.querySelector('#spinner') as HTMLDivElement;
 const errorMessage = document.querySelector('#error-message') as HTMLDivElement;
-const themeToggleButton = document.querySelector(
-  '#theme-toggle',
-) as HTMLButtonElement;
 const daysInput = document.querySelector('#days-input') as HTMLInputElement;
 const poiChipsContainer = document.querySelector(
   '#poi-chips-container',
 ) as HTMLDivElement;
-const customPoiInput = document.querySelector(
-  '#custom-poi-input',
-) as HTMLInputElement;
 const zoomControlToggle = document.querySelector(
   '#zoom-control-toggle',
 ) as HTMLInputElement;
@@ -331,13 +323,11 @@ const dayTogglesContainer = document.querySelector(
 // --- INITIALIZATION ---
 async function initMap() {
   bounds = new LatLngBounds();
-  const currentTheme = document.body.getAttribute('data-theme');
-  const mapId = currentTheme === 'dark' ? DARK_MAP_ID : LIGHT_MAP_ID;
 
   map = new Map(document.getElementById('map') as HTMLElement, {
     center: MADURAI_COORDS,
     zoom: 13,
-    mapId: mapId,
+    mapId: LIGHT_MAP_ID,
     gestureHandling: gestureHandlingToggle.checked ? 'greedy' : 'cooperative',
     zoomControl: zoomControlToggle.checked,
     cameraControl: false,
@@ -420,11 +410,6 @@ function setupUI() {
     .map((poi) => `<div class="poi-chip" data-poi="${poi}">${poi}</div>`)
     .join('');
 
-  // Set theme from localStorage or system preference
-  const savedTheme = localStorage.getItem('theme') || 'light';
-  document.body.setAttribute('data-theme', savedTheme);
-  updateThemeIcon(savedTheme);
-
   // Set map options from localStorage
   const enableZoom = localStorage.getItem('zoomControl') === 'true';
   const enableGreedyGestures =
@@ -440,13 +425,6 @@ function setupUI() {
 
   // Set initial panel state
   mapContainer.classList.add('map-container-controls-open');
-}
-
-function updateThemeIcon(theme) {
-  const icon = themeToggleButton.querySelector('i');
-  if (icon) {
-    icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-  }
 }
 
 function showMapLoader() {
@@ -485,45 +463,6 @@ function updateMapOptions() {
   }
 }
 
-async function rebuildMap() {
-  if (!map) return;
-  showMapLoader();
-
-  // Store current map state
-  const oldCenter = map.getCenter();
-  const oldZoom = map.getZoom();
-
-  // Clear map div and re-initialize map with new theme
-  document.getElementById('map').innerHTML = '';
-  await initMap();
-
-  // Restore previous map state
-  map.setCenter(oldCenter);
-  map.setZoom(oldZoom);
-
-  // Re-attach all markers and polylines to the new map instance
-  markers.forEach((marker) => marker.setMap(map));
-  lines.forEach((line) => {
-    const isVisible = dayVisibilityState[line.day] ?? true;
-    line.poly.setMap(isVisible ? map : null);
-  });
-
-  // Re-highlight the active elements
-  const activeCarouselCard = document.querySelector('.location-card.active');
-  if (activeCarouselCard) {
-    const activeIndex = parseInt(
-      (activeCarouselCard as HTMLElement).dataset.index,
-      10,
-    );
-    if (!isNaN(activeIndex)) {
-      highlightCarouselCard(activeIndex);
-      highlightMapPin(activeIndex);
-    }
-  }
-
-  hideMapLoader();
-}
-
 // --- EVENT LISTENERS ---
 function addEventListeners() {
   generateButton.addEventListener('click', (e) => {
@@ -537,18 +476,6 @@ function addEventListeners() {
   });
   exportPlanButton?.addEventListener('click', exportDayPlan);
   sharePlanButton?.addEventListener('click', shareDayPlan);
-
-  themeToggleButton.addEventListener('click', async () => {
-    const currentTheme = document.body.getAttribute('data-theme');
-    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-    document.body.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    updateThemeIcon(newTheme);
-
-    if (map) {
-      await rebuildMap();
-    }
-  });
 
   poiChipsContainer.addEventListener('click', (e) => {
     const target = e.target as HTMLDivElement;
@@ -611,6 +538,22 @@ function addEventListeners() {
       });
     }
   });
+
+  // Add a delegated event listener for "Show more" buttons
+  cardsContainer.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (target.classList.contains('show-more-btn')) {
+      e.stopPropagation(); // Prevent card click from firing and panning the map
+      const description = target.previousElementSibling;
+      if (
+        description &&
+        description.classList.contains('card-description')
+      ) {
+        const isExpanded = description.classList.toggle('expanded');
+        target.textContent = isExpanded ? 'Show less' : 'Show more';
+      }
+    }
+  });
 }
 
 // --- CORE APPLICATION LOGIC ---
@@ -641,7 +584,6 @@ function resetInputs() {
   document
     .querySelectorAll('.poi-chip.active')
     .forEach((chip) => chip.classList.remove('active'));
-  customPoiInput.value = '';
   daysInput.value = '2';
 }
 
@@ -690,12 +632,11 @@ async function sendText() {
 
   try {
     const numDays = daysInput.value || '2';
-    const customPois = customPoiInput.value.trim();
     const selectedCategories = Array.from(selectedPois);
 
-    if (selectedCategories.length === 0 && !customPois) {
+    if (selectedCategories.length === 0) {
       throw new Error(
-        'Please select at least one category or add a custom place.',
+        'Please select at least one category or search for a place.',
       );
     }
 
@@ -704,9 +645,6 @@ async function sendText() {
       prompt += ` Include places from these categories: ${selectedCategories.join(
         ', ',
       )}.`;
-    }
-    if (customPois) {
-      prompt += ` Also, make sure to include this specific place: ${customPois}.`;
     }
 
     const response = await ai.models.generateContentStream({
@@ -738,12 +676,15 @@ async function sendText() {
 
     // STEP 1: Process and geocode all locations from the AI response
     let processedLocations = [];
+    const allKnownPlaces = [...MADURAI_PLACES_DATA];
+
     for (const step of aiItinerarySteps) {
       let locationData;
-      const placeData = MADURAI_PLACES_DATA.find(
+      const placeData = allKnownPlaces.find(
         (p) =>
           p.place_name.toLowerCase() === step.place_name.toLowerCase() ||
-          p.google_name.toLowerCase() === step.place_name.toLowerCase(),
+          (p.google_name &&
+            p.google_name.toLowerCase() === step.place_name.toLowerCase()),
       );
 
       if (placeData) {
@@ -808,9 +749,9 @@ async function sendText() {
       sharePlanButton.classList.remove('hidden');
       toggleCarouselButton.classList.remove('hidden');
 
-      if (window.innerWidth > 768) {
-        collapsePanelButton.click();
-      }
+      
+      collapsePanelButton.click();
+      
       adjustMapBoundsWithDelay();
       setActiveLocation(0, true);
     }
@@ -873,6 +814,13 @@ function setPin(args) {
       fromText: '',
     };
     dayPlanItinerary.push(locationInfo);
+
+    // Get the index of the item we just added to the itinerary array.
+    const itineraryIndex = dayPlanItinerary.length - 1;
+    // Add a click listener to the marker to activate its corresponding carousel card.
+    marker.addListener('click', () => {
+      setActiveLocation(itineraryIndex);
+    });
   } catch (e) {
     console.error('Failed to process and render a location pin. Skipping.', {
       locationArgs: args,
@@ -1141,6 +1089,24 @@ function resetAllRoutesToNormal() {
   });
 }
 
+function expandAndHighlightDay(dayToExpand: number) {
+  const allHeaders = cardsContainer.querySelectorAll('.day-header');
+  allHeaders.forEach((header) => {
+    const day = parseInt((header as HTMLElement).dataset.day, 10);
+    const shouldCollapse = day !== dayToExpand;
+    header.classList.toggle('collapsed', shouldCollapse);
+
+    const cards = cardsContainer.querySelectorAll(
+      `.location-card[data-day="${day}"]`,
+    );
+    cards.forEach((card) =>
+      card.classList.toggle('card-collapsed', shouldCollapse),
+    );
+  });
+
+  highlightRouteForDay(dayToExpand);
+}
+
 function renderCarousel() {
   if (!cardsContainer || dayPlanItinerary.length === 0) return;
   cardsContainer.innerHTML = '';
@@ -1165,7 +1131,7 @@ function renderCarousel() {
           !clickedHeader.classList.contains('collapsed');
 
         if (isCurrentlyExpanded) {
-          // This day is expanded, so we are collapsing it.
+          // Collapse the clicked day
           clickedHeader.classList.add('collapsed');
           const cardsToCollapse = cardsContainer.querySelectorAll(
             `.location-card[data-day="${dayToToggle}"]`,
@@ -1173,38 +1139,10 @@ function renderCarousel() {
           cardsToCollapse.forEach((card) =>
             card.classList.add('card-collapsed'),
           );
-
-          // Reset all routes since no day is actively expanded now.
           resetAllRoutesToNormal();
         } else {
-          // This day is collapsed, so we are expanding it.
-
-          // 1. Collapse all other headers and their cards.
-          const allHeaders = cardsContainer.querySelectorAll('.day-header');
-          allHeaders.forEach((header) => {
-            const day = parseInt((header as HTMLElement).dataset.day, 10);
-            if (day !== dayToToggle) {
-              header.classList.add('collapsed');
-              const cardsToCollapse = cardsContainer.querySelectorAll(
-                `.location-card[data-day="${day}"]`,
-              );
-              cardsToCollapse.forEach((card) =>
-                card.classList.add('card-collapsed'),
-              );
-            }
-          });
-
-          // 2. Expand the clicked header and its cards.
-          clickedHeader.classList.remove('collapsed');
-          const cardsToExpand = cardsContainer.querySelectorAll(
-            `.location-card[data-day="${dayToToggle}"]`,
-          );
-          cardsToExpand.forEach((card) =>
-            card.classList.remove('card-collapsed'),
-          );
-
-          // 3. Highlight the route for this day on the map.
-          highlightRouteForDay(dayToToggle);
+          // Expand the clicked day (and collapse others)
+          expandAndHighlightDay(dayToToggle);
         }
       });
       cardsContainer.appendChild(dayHeader);
@@ -1237,7 +1175,9 @@ function renderCarousel() {
         <div class="card-title">${item.name}</div>
         <div class="card-time">${item.time}</div>
       </div>
-      <div class="card-description">${item.description}</div>
+      <div class="card-description-wrapper">
+        <div class="card-description">${item.description}</div>
+      </div>
       ${travelInfoHtml}
       <a href="${googleMapsUrl}" target="_blank" rel="noopener noreferrer" class="card-gmaps-link">
         <i class="fas fa-map-marker-alt"></i> View on Google Maps
@@ -1245,6 +1185,18 @@ function renderCarousel() {
     `;
     card.addEventListener('click', () => setActiveLocation(index));
     cardsContainer.appendChild(card);
+
+    // After appending, check if the description is overflowing and add a button
+    const descriptionEl = card.querySelector(
+      '.card-description',
+    ) as HTMLElement;
+    if (descriptionEl && descriptionEl.scrollHeight > descriptionEl.clientHeight) {
+      const wrapper = card.querySelector('.card-description-wrapper');
+      const showMoreBtn = document.createElement('button');
+      showMoreBtn.className = 'show-more-btn';
+      showMoreBtn.textContent = 'Show more';
+      wrapper?.appendChild(showMoreBtn);
+    }
   });
 
   locationCarousel.classList.remove('hidden');
@@ -1290,6 +1242,9 @@ function setActiveLocation(index: number, centerOnly = false) {
   if (index < 0 || index >= dayPlanItinerary.length) return;
 
   const location = dayPlanItinerary[index];
+  
+  // Expand the correct day in the carousel before highlighting
+  expandAndHighlightDay(location.day);
 
   map.panTo(location.position);
   if (!centerOnly) {
