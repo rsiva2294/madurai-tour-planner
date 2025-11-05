@@ -1,3 +1,4 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -64,6 +65,7 @@ let dayVisibilityState = {};
 
 // --- DOM ELEMENT REFERENCES ---
 const generateButton = document.querySelector('#generate') as HTMLButtonElement;
+const surpriseMeButton = document.querySelector('#surprise-me-button') as HTMLButtonElement;
 const resetButton = document.querySelector('#reset') as HTMLButtonElement;
 const exportPlanButton = document.querySelector(
   '#export-plan',
@@ -313,6 +315,8 @@ function addEventListeners() {
     sendText();
   });
 
+  surpriseMeButton.addEventListener('click', handleSurpriseMe);
+
   resetButton.addEventListener('click', () => {
     clearResults();
     resetInputs();
@@ -463,6 +467,57 @@ function addEventListeners() {
 }
 
 // --- CORE APPLICATION LOGIC ---
+async function handleSurpriseMe() {
+  surpriseMeButton.classList.add('loading');
+  try {
+    // This clears UI and state sets (selectedPois, selectedFoodCategories)
+    resetInputs();
+
+    // 1. Randomly select number of days (1-3)
+    const randomDays = Math.floor(Math.random() * 3) + 1;
+    daysInput.value = String(randomDays);
+
+    // 2. Randomly select POI categories (3-5)
+    const placeCategories = [...new Set(MADURAI_PLACES_DATA.map((p) => p.category))].filter(Boolean);
+    placeCategories.sort(() => 0.5 - Math.random()); // Shuffle
+    const numPoisToSelect = Math.floor(Math.random() * 3) + 3; // 3, 4, or 5
+    const chosenPois = placeCategories.slice(0, numPoisToSelect);
+
+    chosenPois.forEach(poi => {
+      selectedPois.add(poi);
+      const chip = poiChipsContainer.querySelector(`.poi-chip[data-poi="${poi}"]`);
+      if (chip) {
+        chip.classList.add('active');
+      }
+    });
+
+    // 3. Randomly select food categories (75% chance, 1-3 categories)
+    if (Math.random() < 0.75) {
+      const foodCategories = [...new Set(MADURAI_EATERIES_DATA.map((e) => e.category))].filter(Boolean);
+      foodCategories.sort(() => 0.5 - Math.random()); // Shuffle
+      const numFoodToSelect = Math.floor(Math.random() * 3) + 1; // 1, 2, or 3
+      const chosenFoodCats = foodCategories.slice(0, numFoodToSelect);
+
+      chosenFoodCats.forEach(cat => selectedFoodCategories.add(cat));
+      
+      const foodChip = document.querySelector('#food-chip');
+      if (foodChip) {
+        foodChip.classList.add('active');
+      }
+    }
+
+    // 4. Trigger itinerary generation
+    generateButton.classList.add('loading');
+    await sendText();
+
+  } catch (e) {
+    handleError(e, "An unexpected error occurred during the 'Surprise Me' request.");
+  } finally {
+    surpriseMeButton.classList.remove('loading');
+    // sendText() handles removing the loading class from the main generate button
+  }
+}
+
 function clearResults() {
   points = [];
   bounds = new google.maps.LatLngBounds();
@@ -1108,26 +1163,23 @@ function renderCarousel() {
       : '';
       
     const typeTagHtml = item.type === 'eatery' 
-      ? `<div class="card-type-tag">Food & Drink</div>` 
+      ? `<div class="card-type-icon" title="Food & Drink"><i class="fas fa-utensils"></i></div>` 
       : '';
       
     const displayTime = formatTimeTo12Hour(item.time);
-    const cardActionsHtml = `
-      <div class="card-header-actions">
-        <div class="card-time">${displayTime}</div>
-        <button class="replace-location-btn" data-index="${index}" aria-label="Replace this location" title="Find a replacement for ${item.name}">
-          <i class="fas fa-sync-alt"></i>
-        </button>
-      </div>
-    `;
 
     card.innerHTML = `
       <div class="card-header">
-        <div class="card-title-wrapper">
-            <div class="card-title">${item.name}</div>
+        <div class="card-title">${item.name}</div>
+        <div class="card-meta-row">
             ${typeTagHtml}
+            <div class="card-header-actions">
+                <div class="card-time">${displayTime}</div>
+                <button class="replace-location-btn" data-index="${index}" aria-label="Replace this location" title="Find a replacement for ${item.name}">
+                <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
         </div>
-        ${cardActionsHtml}
       </div>
       <div class="card-description-wrapper">
         <div class="card-description">${item.description}</div>
