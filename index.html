@@ -45,7 +45,7 @@
               />
             </div>
             <div class="input-group">
-              <label>Popular Places of Interest</label>
+              <label>Select Your Interests</label>
               <div class="poi-chips" id="poi-chips-container">
                 <!-- Chips will be inserted here by the script -->
               </div>
@@ -78,17 +78,6 @@
                   <span class="slider round"></span>
                 </label>
               </div>
-               <div class="setting-row">
-                <span>Optimize Daily Routes</span>
-                <label class="switch">
-                  <input type="checkbox" id="optimize-route-toggle">
-                  <span class="slider round"></span>
-                </label>
-              </div>
-            </div>
-            <!-- Container for Day Route Toggles -->
-            <div id="day-toggles-container" class="hidden">
-               <!-- Day toggles will be inserted here by the script -->
             </div>
           </div>
         </div>
@@ -114,6 +103,19 @@
         <div class="carousel-header">
           <h3 class="carousel-title">Your Itinerary</h3>
           <div class="carousel-actions">
+             <div id="route-visibility-control" class="route-visibility-control hidden">
+              <button id="route-visibility-toggle-btn" class="secondary-button">
+                <i class="fas fa-route"></i> Routes
+              </button>
+              <div id="route-visibility-popover" class="route-visibility-popover hidden">
+                <div class="popover-header">
+                  <h5>Route Visibility</h5>
+                </div>
+                <div id="day-toggles-container">
+                  <!-- Day toggles will be inserted here by the script -->
+                </div>
+              </div>
+            </div>
             <button id="share-plan" class="secondary-button hidden">
               <i class="fas fa-share-alt"></i> Share
             </button>
@@ -127,6 +129,24 @@
         </div>
       </div>
     </div>
+    
+    <!-- Food Category Selection Modal -->
+    <div id="food-modal-overlay" class="modal-overlay hidden">
+      <div id="food-modal" class="modal">
+        <div class="modal-header">
+          <h3>Select Food Preferences</h3>
+          <button id="close-modal-btn" class="close-button" aria-label="Close food selection modal">&times;</button>
+        </div>
+        <div class="modal-body" id="food-categories-container">
+          <!-- Food category checkboxes will be inserted here -->
+        </div>
+        <div class="modal-footer">
+          <button id="cancel-food-selection" class="modal-button secondary">Cancel</button>
+          <button id="confirm-food-selection" class="modal-button primary">Confirm</button>
+        </div>
+      </div>
+    </div>
+
 
     <!-- Semi-transparent overlay for mobile contexts (if needed in future) -->
     <div class="map-overlay" id="map-overlay"></div>

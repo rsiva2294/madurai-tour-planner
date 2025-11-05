@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { FunctionDeclaration, GoogleGenAI, Type } from '@google/genai';
+import { MADURAI_PLACES_DATA, MADURAI_EATERIES_DATA } from './data';
 
 // Fix: Add declarations for google maps API.
 declare const google: any;
@@ -24,245 +25,31 @@ const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary(
 );
 const { Place } = await google.maps.importLibrary('places');
 
-// --- LOCAL DATA SOURCE (Provided by User) ---
-const MADURAI_PLACES_DATA = [
-  {
-    place_name: 'Sri Meenakshi Sundareswarar Temple',
-    google_name: 'Meenakshi Amman Temple',
-    timings: '5:00 AM to 12:30 PM and 4:00 PM to 10:00 PM',
-    description:
-      'Madurai’s crown jewel and one of India’s most celebrated temples, it features 14 towering gopurams, a 1000-pillared hall, musical columns, and grand festivals like Chithirai Thirukalyanam.',
-    address: 'Madurai Main, Madurai, Tamil Nadu 625001',
-    plus_code: 'W499+RP Madurai, Tamil Nadu',
-    maps_short_link: 'https://maps.app.goo.gl/HgpMZij7Bccodnw56',
-    maps_full_link:
-      'https://www.google.com/maps/place/Meenakshi+Amman+Temple/@9.9193488,78.117514,18z/data=!4m6!3m5!1s0x3b00c58461e46987:0xf134621ce5286703!8m2!3d9.9195045!4d78.1193418!16s%2Fm%2F026g1j2?entry=ttu&g_ep=EgoyMDI1MTAwNi4wIKXMDSoASAFQAw%3D%3D',
-    latitude: '9.919349',
-    longitude: '78.117514',
-    distance_km: '0.2',
-    category: 'Spiritual',
-  },
-  {
-    place_name: 'Thirumalai Nayakar Mahal',
-    google_name: 'Thirumalai Nayakkar Mahal',
-    timings: '9:00 AM to 1:00 PM and 1:30 PM to 5:00 PM',
-    description:
-      'A stunning 17th-century palace blending Dravidian and European styles. Known for its giant arches, courtyard, and evening light & sound show, it showcases the opulence of the Nayak dynasty.',
-    address: 'Palace Rd, Mahal Area, Madurai Main, Madurai, Tamil Nadu 625001',
-    plus_code: 'W47F+XHJ',
-    maps_short_link: 'https://maps.app.goo.gl/VKE8uVCQMKfk5hht5',
-    maps_full_link:
-      'https://www.google.com/maps/place/Thirumalai+Nayakkar+Mahal/@9.9147211,78.1235013,19.5z/data=!4m6!3m5!1s0x3b00c59d0deefb2b:0xd039b81787074b09!8m2!3d9.9149532!4d78.1238927!16s%2Fg%2F11b7q90fhs?entry=tts&g_ep=EgoyMDI1MTAwNi4wIPu8ASoASAFQAw%3D%3D&skid=97cfc626-ffbd-49f0-851d-785061a24e65',
-    latitude: '9.914953',
-    longitude: '78.123893',
-    distance_km: '0.7',
-    category: 'Heritage',
-  },
-  {
-    place_name: 'Vandiyur Mariamman Teppakkulam',
-    google_name: 'Vandiyur Maariamman Kovil Theppakulam',
-    timings: '6:00 AM to 9:00 PM',
-    description:
-      'A massive temple tank built in 1645, linked to the Vaigai River. Famous for the Float Festival (Teppam), where deities are carried across the lit-up pond — a mesmerizing sight in January/February.',
-    address: 'Mariamman Nagar, Meenakshi Nagar, Madurai, Tamil Nadu 625009',
-    plus_code: 'W46X+57G',
-    maps_short_link: 'https://maps.app.goo.gl/vbK9byyS1jTtEDpV8',
-    maps_full_link:
-      'https://www.google.com/maps/place/Vandiyur+Maariamman+Kovil+Theppakulam+-Madurai/@9.9104001,78.1453979,17z/data=!4m6!3m5!1s0x3b00c506f7cc53cd:0xa65259fb05c4f5f7!8m2!3d9.9104431!4d78.1482011!16s%2Fg%2F1td0wxg6?entry=tts&g_ep=EgoyMDI1MTAwNi4wIPu8ASoASAFQAw%3D%3D&skid=99565d8f-3c49-450f-aa81-403a35603a06',
-    latitude: '9.910443',
-    longitude: '78.148201',
-    distance_km: '3.03',
-    category: 'Spiritual',
-  },
-  {
-    place_name: 'Gandhi Memorial Museum',
-    google_name: 'Gandhi Memorial Museum',
-    timings: '10:00 AM to 1:00 PM and 2:00 PM to 5:45 PM',
-    closed_days: 'Friday',
-    description:
-      'Housed in Rani Mangammal’s palace, this museum showcases India’s freedom struggle and Gandhi’s life. Highlights include Gandhi’s letters, personal artifacts, and the blood-stained cloth from his assassination.',
-    address: 'Collector Office Rd, Alwarpuram, Madurai, Tamil Nadu 625020',
-    plus_code: 'W4HQ+XC',
-    maps_short_link: 'https://maps.app.goo.gl/REbhdGbxN6DySiLR9',
-    maps_full_link:
-      'https://www.google.com/maps/place/Gandhi+Memorial+Museum/@9.9299573,78.1385754,17z/data=!3m1!4b1!4m6!3m5!1s0x3b00c5bc1cdb0b6d:0x3c7ce8eac00e7387!8m2!3d9.9299573!4d78.1385754!16s%2Fm%2F0h3m835?entry=ttu&g_ep=EgoyMDI1MTAwNi4wIKXMDSoASAFQAw%3D%3D',
-    latitude: '9.929957',
-    longitude: '78.138575',
-    distance_km: '2.41',
-    category: 'Museum',
-  },
-  {
-    place_name: 'Koodal Azhagar Temple',
-    google_name: 'Arulmigu Koodal Azhagar Temple',
-    timings: '5:30 AM to 12:00 PM and 4:00 PM to 9:00 PM',
-    description:
-      'A 108 Divya Desam temple in the city centre, known for its Dravidian architecture and legends from Silappadikaram. Lord Vishnu is worshipped here as Koodal Azhagar, along with Goddess Madhuravalli.',
-    address:
-      'Koodal Alagar Perumal Koil Street, Pallivasal Ln, Near Periyar Bus Stand, Periyar, Madurai Main, Madurai, Tamil Nadu 625001',
-    plus_code: 'W477+QM8',
-    maps_short_link: 'https://maps.app.goo.gl/as3T6Cc9yPQxfaPT8',
-    maps_full_link:
-      'https://www.google.com/maps/place/Arulmigu+Koodal+Azhagar+Temple/@9.9144189,78.1116202,17z/data=!3m1!4b1!4m6!3m5!1s0x3b00c5804b2b9651:0xeaf7f217a7990866!8m2!3d9.9144189!4d78.1142005!16s%2Fm%2F026mslf?entry=tts&g_ep=EgoyMDI1MTAwNi4wIPu8ASoASAFQAw%3D%3D&skid=7b7e1296-7f12-449b-900a-6d4404108b38',
-    latitude: '9.914419',
-    longitude: '78.114201',
-    distance_km: '1.02',
-    category: 'Spiritual',
-  },
-  {
-    place_name: 'Alagarkoil Temple',
-    google_name: 'Arulmigu Kallazhagar Sundararaja Perumal Temple',
-    timings: '6:00 AM to 12:30 PM and 3:30 PM to 8:00 PM',
-    description:
-      'Located amid scenic hills, this Vishnu temple (Kallazhagar) is renowned for its intricate pillars and the grand Chithirai Festival, where the deity’s procession to the Vaigai River attracts thousands.',
-    address:
-      'Alagar Kovil Main Rd, Alagar Nagar, Ramavarma Nagar, K.Pudur, Tamil Nadu 625301',
-    plus_code: '36F7+W6',
-    maps_short_link: 'https://maps.app.goo.gl/sQty46v4jimHAAMY8',
-    maps_full_link:
-      'https://www.google.com/maps/place/Arulmigu+Kallazhagar+Sundararaja+Perumal+Temple/@10.0748476,78.202322,15z/data=!4m7!3m6!1s0x3b00bf39e5cfc2e5:0x8dd0f3238544b80e!8m2!3d10.0748476!4d78.2130549!15sCgthbGFnYXJrb3ZpbFoNIgthbGFnYXJrb3ZpbJIBDGhpbmR1X3RlbXBsZaoBNBABMh8QASIbIg6pAFjzyylBPdHF8wfSYr47_8av_ZsfvvpXMg8QAiILYWxhZ2Fya292aWzgAQA!16zL20vMDRwbGY1?entry=tts&g_ep=EgoyMDI1MTAwNi4wIPu8ASoASAFQAw%3D%3D&skid=9a06b6a8-8741-4a94-a33f-03a8f888717b',
-    latitude: '10.074848',
-    longitude: '78.213055',
-    distance_km: '19.52',
-    category: 'Spiritual',
-  },
-  {
-    place_name: 'Tirupparankunram Murugan Temple',
-    google_name: 'Arulmigu Subramaniya Swami Temple, Tirupparankundram',
-    timings: '5:30 AM to 1:00 PM and 4:00 PM to 9:00 PM',
-    description:
-      'One of Murugan’s six abodes, carved from rock and dating to the 8th century. Unique for housing both Shiva and Vishnu sanctums, it symbolizes religious harmony and divine union.',
-    address: '146a, Periya Ratha Veethi, Thiruparankundram, Tamil Nadu 625005',
-    plus_code: 'V3JC+2G',
-    maps_short_link: 'https://maps.app.goo.gl/vFArPHbU5fGNS8rF7',
-    maps_full_link:
-      'https://www.google.com/maps/place/Arulmigu+Subramaniya+Swami+Temple,+Tirupparankundram/@9.8801051,78.0687752,17z/data=!3m1!4b1!4m6!3m5!1s0x3b00cfce0abf5a1f:0x68aff2db4d1e7c1a!8m2!3d9.8801051!4d78.0713555!16s%2Fm%2F026g0v2?entry=tts&g_ep=EgoyMDI1MTAwNi4wIPu8ASoASAFQAw%3D%3D&skid=b145a015-9578-4186-897d-d4bd094a022a',
-    latitude: '9.880105',
-    longitude: '78.071356',
-    distance_km: '7.06',
-    category: 'Spiritual',
-  },
-  {
-    place_name: "St. Mary's Cathedral",
-    google_name: "St. Mary's Cathedral",
-    timings: '7:00 AM to 7:00 PM',
-    description:
-      'A 150-year-old Roman-style church with twin bell towers, originally built as a chapel by Fr. Garnier. Known for its peaceful ambience, striking architecture, and historic significance.',
-    address: 'E Veli St, Madurai, Tamil Nadu 625001',
-    plus_code: 'W47G+872',
-    maps_short_link: 'https://maps.app.goo.gl/ZLFgs2CXCrqnyftB6',
-    maps_full_link:
-      "https://www.google.com/maps/place/St.+Mary's+Cathedral/@9.9132624,78.1230743,17z/data=!3m1!4b1!4m6!3m5!1s0x3b00c423e48f6cbf:0x31adac7f092aa579!8m2!3d9.9132624!4d78.1256546!16s%2Fg%2F122lq3j6?entry=tts&g_ep=EgoyMDI1MTAwNi4wIPu8ASoASAFQAw%3D%3D&skid=6d0a8c78-30ee-4938-b55e-d80282086613",
-    latitude: '9.913262',
-    longitude: '78.125655',
-    distance_km: '0.81',
-    category: 'Spiritual',
-  },
-  {
-    place_name: 'Kazimar Big Mosque (Periya Pallivasal)',
-    google_name: 'Kazimar Big Mosque',
-    timings: '4:30 AM to 11:00 PM',
-    description:
-      'Madurai’s oldest mosque, built in 1284 by a descendant of Prophet Muhammad. It houses the Dargah of Hazrats, an Arabic school, and hosts grand annual celebrations in Rajab month.',
-    address: 'Kazimar St, Periyar, Madurai Main, Madurai, Tamil Nadu 625001',
-    plus_code: 'W477+4M',
-    maps_short_link: 'https://maps.app.goo.gl/gdoGVgnsKvjLYqT18',
-    maps_full_link:
-      'https://www.google.com/maps/place/Kazimar+Big+Mosque/@9.9128155,78.0781799,14z/data=!4m7!3m6!1s0x3b00c581d7d0773b:0x9bf62d7981443494!8m2!3d9.9128155!4d78.1142288!15sChFwZXJpeWEgcGFsbGl2YXNhbFoTIhFwZXJpeWEgcGFsbGl2YXNhbJIBBm1vc3F1ZaoBURABKhUiEXBlcml5YSBwYWxsaXZhc2FsKAAyHxABIhuuPl2jRCFS-9dsL_3NXH2MWIxWg1wi2sjgycsyFRACIhFwZXJpeWEgcGFsbGl2YXNhbOABAA!16s%2Fm%2F0gjd4k1?entry=tts&g_ep=EgoyMDI1MTAwNi4wIPu8ASoASAFQAw%3D%3D&skid=c9bef31f-ca8a-4021-a849-edfef5d5760f',
-    latitude: '9.912816',
-    longitude: '78.114229',
-    distance_km: '4.57',
-    category: 'Spiritual',
-  },
-  {
-    place_name: 'Keeladi Museum',
-    google_name: 'Keeladi Museum',
-    timings: '10:00 AM to 06:00 PM',
-    closed_days: 'Tuesday',
-    description:
-      'An archaeological museum near Madurai showcasing artifacts from the Keeladi excavation, revealing the advanced urban life and rich Tamil civilization of the Sangam era.',
-    address: 'excavation Site, Keeladi, Tamil Nadu 630612',
-    plus_code: 'V57M+CXM',
-    maps_short_link: 'https://maps.app.goo.gl/SoB4xqT9eivY6r6p8',
-    maps_full_link:
-      'https://www.google.com/maps/place/Keeladi+Museum/@9.8634537,78.1845445,19.74z/data=!4m6!3m5!1s0x3b00db2035594243:0xff1c130600ee67cb!8m2!3d9.863592!4d78.1850176!16s%2Fg%2F11h6k8_ldg?entry=tts&g_ep=EgoyMDI1MTAwNi4wIPu8ASoASAFQAw%3D%3D&skid=12d4ca22-f915-4192-873b-273362f127c4',
-    latitude: '9.863592',
-    longitude: '78.185018',
-    distance_km: '9.48',
-    category: 'Museum',
-  },
-  {
-    place_name: 'Pazhamudhirsolai (Solaimalai Mandapam)',
-    google_name: 'Arulmigu Solaimalai Murugan Temple, Pazhamudircholai',
-    timings: '5:30 AM to 1:00 PM and 4:00 PM to 9:00 PM',
-    description:
-      'One of Lord Muruga’s six sacred abodes, located atop a forested hill. The temple is associated with the poet Avvaiyar and celebrates vibrant festivals like Kanda Sashti and Vaikasi Visakam.',
-    address: 'Alagar Koil Rd, Alagar Hills R.F, Tamil Nadu 625301',
-    plus_code: '36VF+P87',
-    maps_short_link: 'https://maps.app.goo.gl/ZDt3KtsgzyiDpyzP7',
-    maps_full_link:
-      'https://www.google.com/maps/place/Arulmigu+Solaimalai+Murugan+Temple,+Pazhamudircholai/@10.0942972,78.2207304,17z/data=!3m1!4b1!4m6!3m5!1s0x3b00bedfc1738841:0x47119124010d45d3!8m2!3d10.0942972!4d78.2233107!16s%2Fm%2F026g1r_?entry=tts&g_ep=EgoyMDI1MTAwNi4wIPu8ASoASAFQAw%3D%3D&skid=ceea74a0-09ca-421c-9725-53a33e477b53',
-    latitude: '10.094297',
-    longitude: '78.223311',
-    distance_km: '22.38',
-    category: 'Spiritual',
-  },
-  {
-    place_name: 'Samanar Hill (Keelakuyilkudi)',
-    google_name: 'Samanar Hill, Keelakuyilkudi',
-    timings: 'Before Sunset',
-    description:
-      'An ancient Jain site near Madurai with rock-cut sculptures, cave temples, and centuries-old inscriptions. The serene landscape with lotus ponds makes it a perfect mix of history and tranquility.',
-    address: 'Kilakuyilkudi, Tamil Nadu 625019',
-    plus_code: 'W2FX+W59',
-    maps_short_link: 'https://maps.app.goo.gl/1eFwbExp9Z3HSXYk8',
-    maps_full_link:
-      'https://www.google.com/maps/place/Samanar+Hill,+Keelakuyilkudi/@9.9221938,78.0305606,15z/data=!3m1!4b1!4m6!3m5!1s0x3b00ceede662f8fb:0xcea17cbf747a6e2!8m2!3d9.9221943!4d78.0489933!16s%2Fm%2F0_fp0sv?entry=tts&g_ep=EgoyMDI1MTAwNi4wIPu8ASoASAFQAw%3D%3D&skid=a477b50d-cfcd-4a96-b9ea-405e2ade802b',
-    latitude: '9.922194',
-    longitude: '78.048993',
-    distance_km: '9.73',
-    category: 'Heritage',
-  },
-  {
-    place_name: 'Thirumohoor Kalamegaperumal Temple',
-    google_name: 'Thirumogoor Shri Kalameghaperumal Temple - Madurai',
-    timings: '7:00 AM to 12:00 PM and 4:00 PM to 8:00 PM',
-    description:
-      'One of the 108 Divya Desams dedicated to Lord Vishnu, this temple is famed for its intricate carvings, divine legends, and annual Brahmotsavam festival. It represents both devotion and architectural brilliance.',
-    address: 'Thiruvathavur Rd, Tirumohur, Tamil Nadu 625107',
-    plus_code: 'X624+8R9',
-    maps_short_link: 'https://maps.app.goo.gl/ZziHJyxKPqugQ4QB6',
-    maps_full_link:
-      'https://www.google.com/maps/place/Thirumogoor+Shri+Kalameghaperumal+Temple+-+Madurai/@9.9507999,78.2071004,17z/data=!3m1!4b1!4m6!3m5!1s0x3b00c3f984504dfd:0x5d78f0b1b270ee48!8m2!3d9.9507999!4d78.2071004!16s%2Fm%2F05mqngg?entry=ttu&g_ep=EgoyMDI1MTAwOC4wIKXMDSoASAFQAw%3D%3D',
-    latitude: '9.9508',
-    longitude: '78.207100',
-    distance_km: '15.5',
-    category: 'Spiritual',
-  },
-  {
-    place_name: 'Puthu Mandapam',
-    google_name: 'Puthu Mandapam Madurai',
-    timings: '9:00 AM to 9:00 PM',
-    description:
-      'A historic market near Meenakshi Temple where you can find handicrafts, bangles, souvenirs, and religious items.',
-    category: 'Shopping & Local Experience',
-    latitude: '9.9189',
-    longitude: '78.1197',
-  },
-];
-
 // --- CONSTANTS ---
 const MADURAI_COORDS = { lat: 9.9252, lng: 78.1198 };
 const LIGHT_MAP_ID = '4504f8b37365c3d0';
 const ROUTE_COLORS = [
-  '#4285F4',
-  '#DB4437',
-  '#F4B400',
-  '#0F9D58',
-  '#AB47BC',
-  '#FF7043',
-  '#5C6BC0',
-  '#26A69A',
+  '#4285F4', // Blue
+  '#DB4437', // Red
+  '#F4B400', // Yellow
+  '#0F9D58', // Green
+  '#AB47BC', // Purple
+  '#FF7043', // Orange
+  '#5C6BC0', // Indigo
+  '#26A69A', // Teal
 ];
+// Darker shades for pin borders for better contrast
+const PIN_BORDER_COLORS = [
+    '#1A73E8',
+    '#C5221F',
+    '#F29900',
+    '#0B8043',
+    '#8E24AA',
+    '#F0652E',
+    '#3949AB',
+    '#00796B'
+];
+
 
 // --- APPLICATION STATE ---
 let map;
@@ -271,7 +58,8 @@ let markers = [];
 let lines = [];
 let bounds;
 let dayPlanItinerary = [];
-let selectedPois = new Set();
+let selectedPois = new Set<string>();
+let selectedFoodCategories = new Set<string>();
 let dayVisibilityState = {};
 
 // --- DOM ELEMENT REFERENCES ---
@@ -297,9 +85,6 @@ const zoomControlToggle = document.querySelector(
 const gestureHandlingToggle = document.querySelector(
   '#gesture-handling-toggle',
 ) as HTMLInputElement;
-const optimizeRouteToggle = document.querySelector(
-  '#optimize-route-toggle',
-) as HTMLInputElement;
 const controlPanel = document.querySelector('#control-panel') as HTMLDivElement;
 const collapsePanelButton = document.querySelector(
   '#collapse-panel',
@@ -319,6 +104,15 @@ const toggleCarouselButton = document.querySelector(
 const dayTogglesContainer = document.querySelector(
   '#day-toggles-container',
 ) as HTMLDivElement;
+const foodModalOverlay = document.querySelector('#food-modal-overlay') as HTMLDivElement;
+const foodCategoriesContainer = document.querySelector('#food-categories-container') as HTMLDivElement;
+const confirmFoodSelectionButton = document.querySelector('#confirm-food-selection') as HTMLButtonElement;
+const cancelFoodSelectionButton = document.querySelector('#cancel-food-selection') as HTMLButtonElement;
+const closeModalButton = document.querySelector('#close-modal-btn') as HTMLButtonElement;
+const routeVisibilityControl = document.querySelector('#route-visibility-control') as HTMLDivElement;
+const routeVisibilityToggleBtn = document.querySelector('#route-visibility-toggle-btn') as HTMLButtonElement;
+const routeVisibilityPopover = document.querySelector('#route-visibility-popover') as HTMLDivElement;
+
 
 // --- INITIALIZATION ---
 async function initMap() {
@@ -372,7 +166,7 @@ const locationFunctionDeclaration: FunctionDeclaration = {
   },
 };
 
-// Create a string of available places for the prompt, including timings
+// Create a string of available places for the prompt
 const availablePlacesForPrompt = MADURAI_PLACES_DATA.map((p) => {
   let details = `(Category: ${p.category}, Timings: ${p.timings || 'N/A'}`;
   if (p.closed_days) {
@@ -382,40 +176,76 @@ const availablePlacesForPrompt = MADURAI_PLACES_DATA.map((p) => {
   return `- "${p.place_name}" ${details}`;
 }).join('\n');
 
-const systemInstructions = `You are an expert travel agent specializing in creating detailed, multi-day itineraries for the city of Madurai, Tamil Nadu, India.
-Your task is to select places from a PREDEFINED LIST to build a logical and enjoyable itinerary based on user preferences.
+// Create a string of available eateries for the prompt
+const availableEateriesForPrompt = MADURAI_EATERIES_DATA.map((e) => {
+  return `- "${e.place_name}" (Category: ${e.category}, Specialty: ${e.specialty})`;
+}).join('\n');
 
-**Available Places (DO NOT use any place not on this list):**
+const systemInstructions = `You are an expert travel agent specializing in creating detailed, multi-day itineraries for the city of Madurai, Tamil Nadu, India.
+Your task is to select places and restaurants from PREDEFINED LISTS to build a logical and enjoyable itinerary based on user preferences.
+
+**CRITICAL RULE: ACTIVITY PACING**
+- You MUST schedule at least one tourist attraction (from the 'Available Tourist Places' list) between any two food-related stops (from the 'Available Eateries' list).
+- IT IS FORBIDDEN to place two eateries consecutively in the itinerary, regardless of whether they are for a meal, snack, or drink.
+
+**Available Tourist Places (DO NOT use any place not on this list):**
 ${availablePlacesForPrompt}
 
+**Available Eateries (DO NOT use any eatery not on this list):**
+${availableEateriesForPrompt}
+
 **Core Responsibilities:**
-1.  **Use Only Provided Places:** You MUST exclusively select places from the list above. Match the 'place_name' exactly.
-2.  **Respect Operating Hours:** Pay close attention to the 'timings' and 'closed_days' provided for each place. DO NOT schedule visits outside of these hours or on closed days. For example, do not suggest a museum visit at 8:00 AM if it opens at 10:00 AM.
-3.  **Adhere to User Preferences:** Build the itinerary using places that match the user's selected categories and any custom-named places if they match a name in the list.
-4.  **Logical Sequencing:** Group attractions geographically to minimize travel time. The order of visits within a day should make logistical sense.
-5.  **Complete the Plan:** If the user's choices aren't enough for a full day, intelligently add other relevant places from the list to create a complete itinerary.
-6.  **Output Format:** Your entire response MUST be a series of 'location' function calls. Do not respond with plain text. For each stop, provide the exact 'place_name', 'day', 'sequence', 'time', and a suggested 'duration'.`;
+1.  **Use Only Provided Lists:** You MUST exclusively select places and restaurants from the lists above. Match the 'place_name' exactly.
+2.  **Respect Operating Hours:** Pay close attention to the 'timings' and 'closed_days' for tourist places. DO NOT schedule visits outside these hours.
+3.  **Include Meal Breaks:** At appropriate times (e.g., ~1:00 PM for lunch, ~8:00 PM for dinner), you MUST insert a meal stop. You may also include short snack/drink stops (like Jigarthanda) at logical times. Select a suitable restaurant from the **Available Eateries** list that aligns with the user's selected food categories.
+4.  **Adhere to User Preferences:** Build the itinerary using places and eateries that match the user's selected categories.
+5.  **Logical Sequencing & Geographical Proximity:** This is the most important rule. You MUST group attractions and restaurants that are geographically close to each other to minimize travel time. The order of visits within a day must make logistical sense, creating a sensible path through the city. When selecting an eatery for a meal break, prioritize options that are very close to the previous or next tourist attraction. Avoid long-distance travel between consecutive stops within the same day.
+6.  **Complete the Plan:** If the user's choices aren't enough for a full day, intelligently add other relevant places or meal stops from the lists to create a complete itinerary.
+7.  **Eatery Frequency:** Do not include more than three eateries in a single day's plan. Ideally, include two main meals (lunch and dinner). If you include a third, ensure it's for a different purpose (like a morning coffee/tiffin or an evening snack) and that all three are well-spaced across the day (e.g., one between 8 AM-12 PM, one between 12 PM-4 PM, one between 4 PM-8 PM).
+8.  **Output Format:** Your entire response MUST be a series of 'location' function calls for both tourist spots and restaurants. Do not respond with plain text. For each stop, provide the exact 'place_name', 'day', 'sequence', 'time', and a suggested 'duration'.`;
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // --- UI & THEME LOGIC ---
 function setupUI() {
   // Dynamically populate POI chips from local data categories
-  const categories = [
-    ...new Set(MADURAI_PLACES_DATA.map((p) => p.category)),
-  ]
+  const placeCategories = [...new Set(MADURAI_PLACES_DATA.map((p) => p.category))]
     .filter(Boolean)
     .sort();
-  poiChipsContainer.innerHTML = categories
+    
+  let chipsHtml = placeCategories
     .map((poi) => `<div class="poi-chip" data-poi="${poi}">${poi}</div>`)
     .join('');
+  
+  // Add the special "Food" chip
+  chipsHtml += `<div class="poi-chip" data-poi="Food" id="food-chip">Food</div>`;
+  
+  poiChipsContainer.innerHTML = chipsHtml;
 
-  // Set map options from localStorage
+  // Populate the food modal
+  const eateryCategories = [...new Set(MADURAI_EATERIES_DATA.map((e) => e.category))]
+    .filter(Boolean)
+    .sort();
+
+  foodCategoriesContainer.innerHTML = eateryCategories
+    .map(
+      (cat) => `
+      <label class="food-category-item">
+        <input type="checkbox" name="food-category" value="${cat}">
+        <span>${cat}</span>
+      </label>
+    `,
+    )
+    .join('');
+
+
+  // Set map options from localStorage, with sensible defaults
   const enableZoom = localStorage.getItem('zoomControl') === 'true';
-  const enableGreedyGestures =
-    localStorage.getItem('gestureHandling') !== 'false'; // Default to true if not set
+  const enableGreedyGestures = localStorage.getItem('gestureHandling') !== 'false'; // Default to true
+
   zoomControlToggle.checked = enableZoom;
   gestureHandlingToggle.checked = enableGreedyGestures;
+
 
   // Disable share button if Web Share API is not supported
   if (!navigator.share) {
@@ -463,6 +293,19 @@ function updateMapOptions() {
   }
 }
 
+function openFoodModal() {
+  // Sync checkboxes with current selections
+  const checkboxes = foodCategoriesContainer.querySelectorAll('input[type="checkbox"]');
+  checkboxes.forEach((cb: HTMLInputElement) => {
+    cb.checked = selectedFoodCategories.has(cb.value);
+  });
+  foodModalOverlay.classList.remove('hidden');
+}
+
+function closeFoodModal() {
+  foodModalOverlay.classList.add('hidden');
+}
+
 // --- EVENT LISTENERS ---
 function addEventListeners() {
   generateButton.addEventListener('click', (e) => {
@@ -481,6 +324,12 @@ function addEventListeners() {
     const target = e.target as HTMLDivElement;
     if (target.classList.contains('poi-chip')) {
       const poi = target.dataset.poi;
+
+      if (poi === 'Food') {
+        openFoodModal();
+        return; // Prevent default chip selection logic
+      }
+
       target.classList.toggle('active');
       if (selectedPois.has(poi)) {
         selectedPois.delete(poi);
@@ -488,6 +337,30 @@ function addEventListeners() {
         selectedPois.add(poi);
       }
     }
+  });
+
+  // Add modal event listeners
+  confirmFoodSelectionButton.addEventListener('click', () => {
+    selectedFoodCategories.clear();
+    const checked = foodCategoriesContainer.querySelectorAll<HTMLInputElement>(
+      'input[type="checkbox"]:checked',
+    );
+    checked.forEach((cb) => selectedFoodCategories.add(cb.value));
+
+    const foodChip = document.querySelector('#food-chip');
+    if (foodChip) {
+      foodChip.classList.toggle('active', selectedFoodCategories.size > 0);
+    }
+    
+    closeFoodModal();
+  });
+
+  cancelFoodSelectionButton.addEventListener('click', closeFoodModal);
+  closeModalButton.addEventListener('click', closeFoodModal);
+  foodModalOverlay.addEventListener('click', (e) => {
+      if (e.target === foodModalOverlay) {
+          closeFoodModal();
+      }
   });
 
   zoomControlToggle.addEventListener('change', updateMapOptions);
@@ -536,7 +409,17 @@ function addEventListeners() {
           line.poly.setMap(isVisible ? map : null);
         }
       });
+       markers.forEach((marker) => {
+        if (marker.day === day) {
+          marker.setMap(isVisible ? map : null);
+        }
+      });
     }
+  });
+
+    routeVisibilityToggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation(); // Prevent document click listener from firing immediately
+    routeVisibilityPopover.classList.toggle('hidden');
   });
 
   // Add a delegated event listener for "Show more" buttons
@@ -552,6 +435,16 @@ function addEventListeners() {
         const isExpanded = description.classList.toggle('expanded');
         target.textContent = isExpanded ? 'Show less' : 'Show more';
       }
+    }
+  });
+
+    // Close popover if clicked outside
+  document.addEventListener('click', (e) => {
+    if (
+      !routeVisibilityPopover.classList.contains('hidden') &&
+      !routeVisibilityControl.contains(e.target as Node)
+    ) {
+      routeVisibilityPopover.classList.add('hidden');
     }
   });
 }
@@ -571,7 +464,8 @@ function clearResults() {
   exportPlanButton.classList.add('hidden');
   sharePlanButton.classList.add('hidden');
   toggleCarouselButton.classList.add('hidden');
-  dayTogglesContainer.classList.add('hidden');
+  routeVisibilityControl.classList.add('hidden');
+  routeVisibilityPopover.classList.add('hidden');
   dayTogglesContainer.innerHTML = '';
 
   cardsContainer.innerHTML = '';
@@ -581,6 +475,7 @@ function clearResults() {
 
 function resetInputs() {
   selectedPois.clear();
+  selectedFoodCategories.clear();
   document
     .querySelectorAll('.poi-chip.active')
     .forEach((chip) => chip.classList.remove('active'));
@@ -595,6 +490,35 @@ function handleError(error: unknown, userMessage: string) {
   if (errorMessage) {
     errorMessage.innerHTML = userMessage;
   }
+}
+
+/**
+ * Parses latitude and longitude from a Google Maps URL.
+ * @param {string} url The Google Maps URL.
+ * @returns {{lat: number, lng: number} | null} The coordinates or null if not found.
+ */
+function getLatLngFromGoogleMapsUrl(url: string): { lat: number; lng: number } | null {
+  if (!url) return null;
+
+  // Prefer the more specific !3d/!4d parameters if available
+  const dataMatch = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if (dataMatch && dataMatch[1] && dataMatch[2]) {
+    return {
+      lat: parseFloat(dataMatch[1]),
+      lng: parseFloat(dataMatch[2]),
+    };
+  }
+  
+  // Fallback to the @lat,lng format
+  const atMatch = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (atMatch && atMatch[1] && atMatch[2]) {
+    return {
+      lat: parseFloat(atMatch[1]),
+      lng: parseFloat(atMatch[2]),
+    };
+  }
+
+  return null;
 }
 
 /**
@@ -632,17 +556,19 @@ async function sendText() {
 
   try {
     const numDays = daysInput.value || '2';
-    const selectedCategories = Array.from(selectedPois);
+    const selectedPlaceCategories = Array.from(selectedPois);
+    const selectedFoodPrefs = Array.from(selectedFoodCategories);
+    const allSelectedCategories = [...selectedPlaceCategories, ...selectedFoodPrefs];
 
-    if (selectedCategories.length === 0) {
+    if (allSelectedCategories.length === 0) {
       throw new Error(
-        'Please select at least one category or search for a place.',
+        'Please select at least one category of interest or food preference.',
       );
     }
 
     let prompt = `Create a ${numDays}-day itinerary for Madurai.`;
-    if (selectedCategories.length > 0) {
-      prompt += ` Include places from these categories: ${selectedCategories.join(
+    if (allSelectedCategories.length > 0) {
+      prompt += ` Include places and food from these categories: ${allSelectedCategories.join(
         ', ',
       )}.`;
     }
@@ -676,35 +602,66 @@ async function sendText() {
 
     // STEP 1: Process and geocode all locations from the AI response
     let processedLocations = [];
-    const allKnownPlaces = [...MADURAI_PLACES_DATA];
 
     for (const step of aiItinerarySteps) {
       let locationData;
-      const placeData = allKnownPlaces.find(
+      const stepNameLower = step.place_name.toLowerCase();
+
+      // Check tourist places data first
+      const placeData = MADURAI_PLACES_DATA.find(
         (p) =>
-          p.place_name.toLowerCase() === step.place_name.toLowerCase() ||
-          (p.google_name &&
-            p.google_name.toLowerCase() === step.place_name.toLowerCase()),
+          p.place_name.toLowerCase() === stepNameLower ||
+          (p.google_name && p.google_name.toLowerCase() === stepNameLower),
       );
+
+      // If not a tourist place, check eateries data
+      const eateryData =
+        !placeData &&
+        MADURAI_EATERIES_DATA.find(
+          (e) => e.place_name.toLowerCase() === stepNameLower,
+        );
 
       if (placeData) {
         locationData = {
           ...step,
+          type: 'poi',
           name: placeData.place_name,
           description: placeData.description,
           lat: parseFloat(placeData.latitude),
           lng: parseFloat(placeData.longitude),
           timings: placeData.timings,
           closed_days: placeData.closed_days,
+          google_maps_url: placeData.maps_full_link,
         };
+      } else if (eateryData) {
+        const coords = getLatLngFromGoogleMapsUrl(eateryData.google_maps_url);
+        if (coords) {
+          locationData = {
+            ...step,
+            type: 'eatery',
+            name: eateryData.place_name,
+            description: `Must-Try: ${eateryData.specialty}. ${eateryData.notes}`,
+            lat: coords.lat,
+            lng: coords.lng,
+            google_maps_url: eateryData.google_maps_url,
+          };
+        } else {
+          handleError(
+            new Error(`URL parsing failed for ${eateryData.place_name}`),
+            `Could not parse map coordinates for "${step.place_name}". It will be skipped.`,
+          );
+          continue; // Skip this step if parsing fails
+        }
       } else {
+        // Fallback for places not in any local data
         console.warn(
-          `AI suggested place "${step.place_name}" not found in local data. Using Places API.`,
+          `AI suggested place "${step.place_name}" not found in local data. Using Places API as a fallback.`,
         );
         try {
           const geocodedPlace = await geocodeLocation(step.place_name);
           locationData = {
             ...step,
+            type: 'poi',
             name: geocodedPlace.name,
             description: `Address: ${
               geocodedPlace.address || 'Not available'
@@ -717,31 +674,24 @@ async function sendText() {
             geoError,
             `Could not find a map location for "${step.place_name}". It will be skipped.`,
           );
-          continue; // Skip this step if geocoding fails
+          continue;
         }
       }
       processedLocations.push(locationData);
     }
 
-    // STEP 2: Optimize routes if the user has enabled the feature
-    let finalItineraryPlan = processedLocations;
-    if (optimizeRouteToggle.checked && processedLocations.length > 0) {
-      const spinnerSpan = generateButton.querySelector('.button-text');
-      if (spinnerSpan) spinnerSpan.textContent = 'Optimizing Routes...';
-      finalItineraryPlan = await optimizeItineraryByDay(processedLocations);
-      if (spinnerSpan) spinnerSpan.textContent = 'Generate Itinerary';
-    }
-
-    // STEP 3: Set map pins for the final (potentially optimized) itinerary
-    for (const location of finalItineraryPlan) {
+    // STEP 2: Set map pins for the final itinerary
+    for (const location of processedLocations) {
       setPin(location);
     }
 
-    // STEP 4: Calculate final travel distances and draw routes
+    // STEP 3: Calculate final travel distances
     dayPlanItinerary = await calculateDistancesAndTimes(dayPlanItinerary);
+
+    // STEP 4: Draw routes on the map
     drawAllRoutes();
 
-    // STEP 5: Render the UI
+    // STEP 5: Render the UI components
     if (dayPlanItinerary.length > 0) {
       renderCarousel();
       renderDayToggles();
@@ -790,10 +740,14 @@ function setPin(args) {
     const point = { lat: Number(args.lat), lng: Number(args.lng) };
     points.push(point);
     bounds.extend(point);
+    
+    const dayIndex = (args.day - 1) % ROUTE_COLORS.length;
+    const dayColor = ROUTE_COLORS[dayIndex];
+    const borderColor = PIN_BORDER_COLORS[dayIndex];
 
     const pinElement = new PinElement({
-      background: '#DB4437', // Default Red
-      borderColor: '#A50E0E',
+      background: dayColor,
+      borderColor: borderColor,
       glyphColor: '#FFFFFF',
     });
 
@@ -803,7 +757,10 @@ function setPin(args) {
       title: args.name,
       content: pinElement.element,
     });
+    // Add day property to marker for visibility toggling
+    marker.day = args.day;
     markers.push(marker);
+
 
     const locationInfo = {
       ...args,
@@ -812,6 +769,8 @@ function setPin(args) {
       distanceFromPrev: '',
       durationFromPrev: '',
       fromText: '',
+      dayColor: dayColor,
+      borderColor: borderColor
     };
     dayPlanItinerary.push(locationInfo);
 
@@ -940,102 +899,24 @@ async function calculateDistancesAndTimes(itinerary) {
   return itinerary;
 }
 
-/**
- * Creates a duration matrix for a given list of locations for route optimization.
- * @param {Array<object>} locations - The locations for a single day.
- * @returns {Promise<Array<Array<number>>>} A 2D array of travel durations in seconds.
- */
-async function createDurationMatrix(locations) {
-  const size = locations.length;
-  const matrix = Array(size)
-    .fill(null)
-    .map(() => Array(size).fill(Infinity));
-  const promises = [];
-
-  for (let i = 0; i < size; i++) {
-    for (let j = 0; j < size; j++) {
-      if (i === j) {
-        matrix[i][j] = 0;
-      } else {
-        const origin = { lat: locations[i].lat, lng: locations[i].lng };
-        const destination = { lat: locations[j].lat, lng: locations[j].lng };
-        promises.push(
-          fetchRouteDetails(origin, destination).then((route) => {
-            if (route && route.duration) {
-              matrix[i][j] = parseInt(route.duration.slice(0, -1), 10);
-            }
-          }),
-        );
-      }
-    }
-  }
-
-  await Promise.all(promises);
-  return matrix;
-}
+// --- TIME & DURATION HELPERS ---
 
 /**
- * Reorders the itinerary for each day to find the most efficient route.
- * @param {Array<object>} itinerary - The full, processed itinerary.
- * @returns {Promise<Array<object>>} The optimized itinerary.
+ * Formats a 24-hour time string ("HH:MM") into a 12-hour AM/PM format.
+ * @param {string} timeStr - The 24-hour time string.
+ * @returns {string} The formatted 12-hour time string.
  */
-async function optimizeItineraryByDay(itinerary) {
-  const locationsByDay = itinerary.reduce((acc, loc) => {
-    const day = loc.day;
-    if (!acc[day]) acc[day] = [];
-    acc[day].push(loc);
-    return acc;
-  }, {});
+function formatTimeTo12Hour(timeStr: string): string {
+    if (!timeStr || !timeStr.includes(':')) return timeStr; 
+    
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    if (isNaN(hours) || isNaN(minutes)) return timeStr;
 
-  const optimizedPlan = [];
-
-  for (const day in locationsByDay) {
-    let dayLocations = locationsByDay[day];
-
-    if (dayLocations.length > 2) {
-      const durationMatrix = await createDurationMatrix(dayLocations);
-
-      // Simple greedy (nearest neighbor) algorithm
-      const tour = [];
-      const startNode = dayLocations[0]; // Keep the first stop fixed
-      tour.push(startNode);
-      let remaining = dayLocations.slice(1);
-
-      while (remaining.length > 0) {
-        const lastInTour = tour[tour.length - 1];
-        const lastInTourIndex = dayLocations.indexOf(lastInTour);
-        let nearestIndex = -1;
-        let minDuration = Infinity;
-
-        remaining.forEach((location) => {
-          const locationIndex = dayLocations.indexOf(location);
-          const duration = durationMatrix[lastInTourIndex][locationIndex];
-          if (duration < minDuration) {
-            minDuration = duration;
-            nearestIndex = dayLocations.indexOf(location);
-          }
-        });
-
-        if (nearestIndex !== -1) {
-          const nearestNode = dayLocations[nearestIndex];
-          tour.push(nearestNode);
-          remaining = remaining.filter((loc) => loc !== nearestNode);
-        } else {
-          // Fallback if no route is found, just add the rest
-          tour.push(...remaining);
-          break;
-        }
-      }
-      dayLocations = tour;
-    }
-    optimizedPlan.push(...dayLocations);
-  }
-
-  // Re-assign sequence numbers after optimization
-  return optimizedPlan.map((loc, index) => ({
-    ...loc,
-    sequence: index + 1, // This is a temporary sequence for ordering, might need adjustment if we want per-day sequence
-  }));
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const formattedHours = hours % 12 === 0 ? 12 : hours % 12;
+    const formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
+    
+    return `${formattedHours}:${formattedMinutes} ${ampm}`;
 }
 
 async function drawAllRoutes() {
@@ -1071,20 +952,27 @@ async function drawAllRoutes() {
 function highlightRouteForDay(dayToHighlight: number) {
   lines.forEach((line) => {
     const isTargetDay = line.day === dayToHighlight;
+    const originalDayColor =
+      ROUTE_COLORS[(line.day - 1) % ROUTE_COLORS.length];
+
     line.poly.setOptions({
       strokeWeight: isTargetDay ? 8 : 4,
       strokeOpacity: isTargetDay ? 1.0 : 0.5,
       zIndex: isTargetDay ? 1 : 0,
+      strokeColor: isTargetDay ? originalDayColor : '#757575', // Highlight color or grey
     });
   });
 }
 
 function resetAllRoutesToNormal() {
   lines.forEach((line) => {
+    const originalDayColor =
+      ROUTE_COLORS[(line.day - 1) % ROUTE_COLORS.length];
     line.poly.setOptions({
       strokeWeight: 4,
       strokeOpacity: 0.8,
       zIndex: 0,
+      strokeColor: originalDayColor,
     });
   });
 }
@@ -1155,7 +1043,7 @@ function renderCarousel() {
     card.dataset.day = String(item.day);
     card.style.setProperty('--day-color', dayColor);
 
-    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    const googleMapsUrl = item.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
       item.name,
     )}&query_ll=${item.lat},${item.lng}`;
 
@@ -1169,11 +1057,20 @@ function renderCarousel() {
         <span class="travel-origin">(${item.fromText})</span>
       </div>`
       : '';
+      
+    const typeTagHtml = item.type === 'eatery' 
+      ? `<div class="card-type-tag">Food & Drink</div>` 
+      : '';
+      
+    const displayTime = formatTimeTo12Hour(item.time);
 
     card.innerHTML = `
       <div class="card-header">
-        <div class="card-title">${item.name}</div>
-        <div class="card-time">${item.time}</div>
+        <div class="card-title-wrapper">
+            <div class="card-title">${item.name}</div>
+            ${typeTagHtml}
+        </div>
+        <div class="card-time">${displayTime}</div>
       </div>
       <div class="card-description-wrapper">
         <div class="card-description">${item.description}</div>
@@ -1212,10 +1109,6 @@ function renderDayToggles() {
   dayTogglesContainer.innerHTML = ''; // Clear previous toggles
   dayVisibilityState = {};
 
-  const togglesTitle = document.createElement('label');
-  togglesTitle.textContent = 'Route Visibility';
-  dayTogglesContainer.appendChild(togglesTitle);
-
   uniqueDays.forEach((day) => {
     dayVisibilityState[day] = true; // Default to visible
     const dayColor = ROUTE_COLORS[(day - 1) % ROUTE_COLORS.length];
@@ -1235,7 +1128,7 @@ function renderDayToggles() {
     dayTogglesContainer.appendChild(row);
   });
 
-  dayTogglesContainer.classList.remove('hidden');
+  routeVisibilityControl.classList.remove('hidden');
 }
 
 function setActiveLocation(index: number, centerOnly = false) {
@@ -1276,16 +1169,18 @@ function highlightMapPin(selectedIndex: number) {
 
   dayPlanItinerary.forEach((location, index) => {
     const isSelected = index === selectedIndex;
+    const { marker, dayColor, borderColor } = location;
 
     const pinOptions = {
-      background: isSelected ? '#4A90E2' : '#DB4437', // Blue for selected, red for default
-      borderColor: isSelected ? '#185ABC' : '#A50E0E',
+      background: dayColor,
+      borderColor: isSelected ? '#2d3748' : borderColor, // Dark border for selected
       glyphColor: '#FFFFFF',
-      scale: isSelected ? 1.2 : 1.0, // Make selected pin slightly larger
+      scale: isSelected ? 1.5 : 1.0, // Make selected pin larger
     };
 
     const pinElement = new PinElement(pinOptions);
-    location.marker.content = pinElement.element;
+    marker.content = pinElement.element;
+    marker.zIndex = isSelected ? 10 : 0; // Ensure selected pin is on top
   });
 }
 
@@ -1324,7 +1219,7 @@ function exportDayPlan() {
     checkPageEnd(25);
     doc.setFontSize(12).setFont(undefined, 'bold');
 
-    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    const googleMapsUrl = item.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
       item.name,
     )}&query_ll=${item.lat},${item.lng}`;
     
@@ -1335,7 +1230,8 @@ function exportDayPlan() {
         .filter((loc) => loc.day === item.day).length;
     const titlePrefix = `${sequenceInDay}. `;
 
-    const titleSuffix = ` (${item.time})`;
+    const displayTime = formatTimeTo12Hour(item.time);
+    const titleSuffix = ` (${displayTime})`;
 
     doc.text(titlePrefix, margin, y);
     const prefixWidth = doc.getTextWidth(titlePrefix);
@@ -1402,7 +1298,8 @@ async function shareDayPlan() {
       currentDay = item.day;
       shareText += `--- Day ${currentDay} ---\n`;
     }
-    shareText += `- ${item.time}: ${item.name}`;
+    const displayTime = formatTimeTo12Hour(item.time);
+    shareText += `- ${displayTime}: ${item.name}`;
     if (item.durationFromPrev) {
       shareText += ` (${item.durationFromPrev} drive)`;
     }
