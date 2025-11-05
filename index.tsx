@@ -422,9 +422,11 @@ function addEventListeners() {
     routeVisibilityPopover.classList.toggle('hidden');
   });
 
-  // Add a delegated event listener for "Show more" buttons
+  // Add a delegated event listener for card buttons
   cardsContainer.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
+
+    // "Show more" button
     if (target.classList.contains('show-more-btn')) {
       e.stopPropagation(); // Prevent card click from firing and panning the map
       const description = target.previousElementSibling;
@@ -436,7 +438,18 @@ function addEventListeners() {
         target.textContent = isExpanded ? 'Show less' : 'Show more';
       }
     }
+
+    // "Replace Location" button
+    const replaceBtn = target.closest('.replace-location-btn');
+    if (replaceBtn) {
+      e.stopPropagation();
+      const index = parseInt(replaceBtn.getAttribute('data-index'), 10);
+      if (!isNaN(index)) {
+        handleReplaceLocation(index);
+      }
+    }
   });
+
 
     // Close popover if clicked outside
   document.addEventListener('click', (e) => {
@@ -549,6 +562,76 @@ async function geocodeLocation(name: string): Promise<any> {
   }
 }
 
+/**
+ * Finds location details from local data or falls back to geocoding.
+ * @param {string} placeName - The name of the place to find.
+ * @returns {Promise<object|null>} A promise that resolves to the location data or null if not found.
+ */
+async function findLocationDetails(placeName: string) {
+  const stepNameLower = placeName.toLowerCase();
+  
+  // Check tourist places data first
+  const placeData = MADURAI_PLACES_DATA.find(
+    (p) =>
+      p.place_name.toLowerCase() === stepNameLower ||
+      (p.google_name && p.google_name.toLowerCase() === stepNameLower),
+  );
+
+  if (placeData) {
+    return {
+      type: 'poi',
+      category: placeData.category,
+      name: placeData.place_name,
+      description: placeData.description,
+      lat: parseFloat(placeData.latitude),
+      lng: parseFloat(placeData.longitude),
+      timings: placeData.timings,
+      closed_days: placeData.closed_days,
+      google_maps_url: placeData.maps_full_link,
+    };
+  }
+
+  // If not a tourist place, check eateries data
+  const eateryData = MADURAI_EATERIES_DATA.find(
+    (e) => e.place_name.toLowerCase() === stepNameLower,
+  );
+
+  if (eateryData) {
+    const coords = getLatLngFromGoogleMapsUrl(eateryData.google_maps_url);
+    if (coords) {
+      return {
+        type: 'eatery',
+        category: eateryData.category,
+        name: eateryData.place_name,
+        description: `Must-Try: ${eateryData.specialty}. ${eateryData.notes}`,
+        lat: coords.lat,
+        lng: coords.lng,
+        google_maps_url: eateryData.google_maps_url,
+      };
+    } else {
+      throw new Error(`URL parsing failed for ${eateryData.place_name}`);
+    }
+  }
+  
+  // Fallback for places not in any local data
+  console.warn(
+    `Place "${placeName}" not found in local data. Using Places API as a fallback.`
+  );
+  try {
+    const geocodedPlace = await geocodeLocation(placeName);
+    return {
+      type: 'poi',
+      name: geocodedPlace.name,
+      description: `Address: ${geocodedPlace.address || 'Not available'}`,
+      lat: geocodedPlace.lat,
+      lng: geocodedPlace.lng,
+    };
+  } catch (geoError) {
+    throw geoError;
+  }
+}
+
+
 async function sendText() {
   spinner.classList.remove('hidden');
   errorMessage.innerHTML = '';
@@ -602,91 +685,28 @@ async function sendText() {
 
     // STEP 1: Process and geocode all locations from the AI response
     let processedLocations = [];
-
     for (const step of aiItinerarySteps) {
-      let locationData;
-      const stepNameLower = step.place_name.toLowerCase();
-
-      // Check tourist places data first
-      const placeData = MADURAI_PLACES_DATA.find(
-        (p) =>
-          p.place_name.toLowerCase() === stepNameLower ||
-          (p.google_name && p.google_name.toLowerCase() === stepNameLower),
-      );
-
-      // If not a tourist place, check eateries data
-      const eateryData =
-        !placeData &&
-        MADURAI_EATERIES_DATA.find(
-          (e) => e.place_name.toLowerCase() === stepNameLower,
-        );
-
-      if (placeData) {
-        locationData = {
-          ...step,
-          type: 'poi',
-          name: placeData.place_name,
-          description: placeData.description,
-          lat: parseFloat(placeData.latitude),
-          lng: parseFloat(placeData.longitude),
-          timings: placeData.timings,
-          closed_days: placeData.closed_days,
-          google_maps_url: placeData.maps_full_link,
-        };
-      } else if (eateryData) {
-        const coords = getLatLngFromGoogleMapsUrl(eateryData.google_maps_url);
-        if (coords) {
-          locationData = {
-            ...step,
-            type: 'eatery',
-            name: eateryData.place_name,
-            description: `Must-Try: ${eateryData.specialty}. ${eateryData.notes}`,
-            lat: coords.lat,
-            lng: coords.lng,
-            google_maps_url: eateryData.google_maps_url,
-          };
-        } else {
-          handleError(
-            new Error(`URL parsing failed for ${eateryData.place_name}`),
-            `Could not parse map coordinates for "${step.place_name}". It will be skipped.`,
-          );
-          continue; // Skip this step if parsing fails
-        }
-      } else {
-        // Fallback for places not in any local data
-        console.warn(
-          `AI suggested place "${step.place_name}" not found in local data. Using Places API as a fallback.`,
-        );
         try {
-          const geocodedPlace = await geocodeLocation(step.place_name);
-          locationData = {
-            ...step,
-            type: 'poi',
-            name: geocodedPlace.name,
-            description: `Address: ${
-              geocodedPlace.address || 'Not available'
-            }`,
-            lat: geocodedPlace.lat,
-            lng: geocodedPlace.lng,
-          };
-        } catch (geoError) {
-          handleError(
-            geoError,
-            `Could not find a map location for "${step.place_name}". It will be skipped.`,
-          );
-          continue;
+            const locationDetails = await findLocationDetails(step.place_name);
+            processedLocations.push({ ...step, ...locationDetails });
+        } catch (findError) {
+             handleError(
+                findError,
+                `Could not find a map location for "${step.place_name}". It will be skipped.`,
+            );
+            continue;
         }
-      }
-      processedLocations.push(locationData);
     }
+    dayPlanItinerary = processedLocations;
+
 
     // STEP 2: Set map pins for the final itinerary
-    for (const location of processedLocations) {
-      setPin(location);
-    }
+    dayPlanItinerary.forEach(location => {
+        setPin(location);
+    });
 
     // STEP 3: Calculate final travel distances
-    dayPlanItinerary = await calculateDistancesAndTimes(dayPlanItinerary);
+    await calculateDistancesAndTimes(dayPlanItinerary);
 
     // STEP 4: Draw routes on the map
     drawAllRoutes();
@@ -732,16 +752,16 @@ async function sendText() {
   }
 }
 
-function setPin(args) {
+function setPin(location) {
   try {
-    if (isNaN(Number(args.lat)) || isNaN(Number(args.lng))) {
-      throw new Error(`Invalid coordinates for location: ${args.name}`);
+    if (isNaN(Number(location.lat)) || isNaN(Number(location.lng))) {
+      throw new Error(`Invalid coordinates for location: ${location.name}`);
     }
-    const point = { lat: Number(args.lat), lng: Number(args.lng) };
+    const point = { lat: Number(location.lat), lng: Number(location.lng) };
     points.push(point);
     bounds.extend(point);
     
-    const dayIndex = (args.day - 1) % ROUTE_COLORS.length;
+    const dayIndex = (location.day - 1) % ROUTE_COLORS.length;
     const dayColor = ROUTE_COLORS[dayIndex];
     const borderColor = PIN_BORDER_COLORS[dayIndex];
 
@@ -754,35 +774,32 @@ function setPin(args) {
     const marker = new AdvancedMarkerElement({
       map,
       position: point,
-      title: args.name,
+      title: location.name,
       content: pinElement.element,
     });
     // Add day property to marker for visibility toggling
-    marker.day = args.day;
+    marker.day = location.day;
     markers.push(marker);
 
+    // Add remaining properties to the itinerary item
+    location.position = new google.maps.LatLng(point);
+    location.marker = marker;
+    location.distanceFromPrev = '';
+    location.durationFromPrev = '';
+    location.fromText = '';
+    location.dayColor = dayColor;
+    location.borderColor = borderColor;
 
-    const locationInfo = {
-      ...args,
-      position: new google.maps.LatLng(point),
-      marker,
-      distanceFromPrev: '',
-      durationFromPrev: '',
-      fromText: '',
-      dayColor: dayColor,
-      borderColor: borderColor
-    };
-    dayPlanItinerary.push(locationInfo);
 
-    // Get the index of the item we just added to the itinerary array.
-    const itineraryIndex = dayPlanItinerary.length - 1;
+    // Get the index of the item. It should already be in the dayPlanItinerary.
+    const itineraryIndex = dayPlanItinerary.findIndex(item => item === location);
     // Add a click listener to the marker to activate its corresponding carousel card.
     marker.addListener('click', () => {
       setActiveLocation(itineraryIndex);
     });
   } catch (e) {
     console.error('Failed to process and render a location pin. Skipping.', {
-      locationArgs: args,
+      locationArgs: location,
       error: e,
     });
   }
@@ -899,6 +916,34 @@ async function calculateDistancesAndTimes(itinerary) {
   return itinerary;
 }
 
+
+async function recalculateRoutesForDay(day: number) {
+    const dayLocations = dayPlanItinerary.filter(loc => loc.day === day);
+    if (dayLocations.length === 0) return;
+
+    // We need to pass the full itinerary to calculateDistancesAndTimes, but we
+    // only want to recalculate for this day. This is a bit inefficient, but
+    // calculateDistancesAndTimes is designed for a full pass.
+    // A better approach would be to refactor it to work on a subset.
+    // For now, let's create a temporary itinerary for calculation.
+    
+    const itineraryWithDay = [...dayPlanItinerary];
+    await calculateDistancesAndTimes(itineraryWithDay);
+
+    // Update the main itinerary with the new values for the specific day
+    dayPlanItinerary.forEach(item => {
+        if (item.day === day) {
+            const updatedItem = itineraryWithDay.find(newItem => newItem.name === item.name && newItem.day === item.day);
+            if (updatedItem) {
+                item.distanceFromPrev = updatedItem.distanceFromPrev;
+                item.durationFromPrev = updatedItem.durationFromPrev;
+                item.fromText = updatedItem.fromText;
+            }
+        }
+    });
+}
+
+
 // --- TIME & DURATION HELPERS ---
 
 /**
@@ -920,6 +965,10 @@ function formatTimeTo12Hour(timeStr: string): string {
 }
 
 async function drawAllRoutes() {
+  // Clear existing routes
+  lines.forEach(line => line.poly.setMap(null));
+  lines = [];
+
   const locationsByDay = dayPlanItinerary.reduce((acc, loc) => {
     const day = loc.day;
     if (!acc[day]) acc[day] = [];
@@ -1063,6 +1112,14 @@ function renderCarousel() {
       : '';
       
     const displayTime = formatTimeTo12Hour(item.time);
+    const cardActionsHtml = `
+      <div class="card-header-actions">
+        <div class="card-time">${displayTime}</div>
+        <button class="replace-location-btn" data-index="${index}" aria-label="Replace this location" title="Find a replacement for ${item.name}">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+      </div>
+    `;
 
     card.innerHTML = `
       <div class="card-header">
@@ -1070,7 +1127,7 @@ function renderCarousel() {
             <div class="card-title">${item.name}</div>
             ${typeTagHtml}
         </div>
-        <div class="card-time">${displayTime}</div>
+        ${cardActionsHtml}
       </div>
       <div class="card-description-wrapper">
         <div class="card-description">${item.description}</div>
@@ -1182,6 +1239,88 @@ function highlightMapPin(selectedIndex: number) {
     marker.content = pinElement.element;
     marker.zIndex = isSelected ? 10 : 0; // Ensure selected pin is on top
   });
+}
+
+async function handleReplaceLocation(index: number) {
+  const card = cardsContainer.querySelector(`.location-card[data-index="${index}"]`);
+  if (!card) return;
+
+  card.classList.add('is-replacing');
+  errorMessage.innerHTML = '';
+
+  try {
+    const locationToReplace = dayPlanItinerary[index];
+    const day = locationToReplace.day;
+    const allPlaceNames = dayPlanItinerary.map(loc => loc.name);
+
+    const dayLocations = dayPlanItinerary.filter(loc => loc.day === day);
+    const locationIndexInDay = dayLocations.findIndex(loc => loc === locationToReplace);
+
+    const prevLocation = locationIndexInDay > 0 ? dayLocations[locationIndexInDay - 1] : null;
+    const nextLocation = locationIndexInDay < dayLocations.length - 1 ? dayLocations[locationIndexInDay + 1] : null;
+
+    let replacementPrompt = `The user wants to replace "${locationToReplace.name}" in their itinerary for Madurai on Day ${day}.
+It is currently scheduled between "${prevLocation ? prevLocation.name : 'the start of the day'}" and "${nextLocation ? nextLocation.name : 'the end of the day'}".
+
+Suggest ONE alternative from the provided lists.
+The replacement MUST be of a similar category to "${locationToReplace.category}".
+The new location MUST be geographically convenient to minimize travel disruption.
+CRITICAL: DO NOT suggest any of the following places, as they are already in the full itinerary:
+${allPlaceNames.join(', ')}
+
+Respond with exactly ONE 'location' function call for the best replacement. The 'day' should be ${day}, and the 'sequence' should be ${locationToReplace.sequence}. Re-estimate a suitable 'time' based on its new position in the day.`;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: replacementPrompt,
+        config: {
+            systemInstruction: systemInstructions,
+            temperature: 0.8, // Higher temp for more creative replacements
+            tools: [{functionDeclarations: [locationFunctionDeclaration]}]
+        },
+    });
+
+    const fn = response.functionCalls?.[0];
+    if (!fn || fn.name !== 'location') {
+      throw new Error("Could not find a suitable replacement. Please try again.");
+    }
+
+    const replacementStep = fn.args;
+    const newLocationDetails = await findLocationDetails(replacementStep.place_name);
+
+    // --- Start state update ---
+    // 1. Remove old map objects
+    locationToReplace.marker.setMap(null);
+    markers = markers.filter(m => m !== locationToReplace.marker);
+    
+    // 2. Create the new location object
+    const newLocation = { ...locationToReplace, ...replacementStep, ...newLocationDetails };
+    
+    // 3. Update the itinerary array
+    dayPlanItinerary[index] = newLocation;
+
+    // 4. Create and set the new pin
+    setPin(newLocation);
+
+    // 5. Recalculate routes and redraw
+    await recalculateRoutesForDay(day);
+    await drawAllRoutes();
+
+    // 6. Update UI
+    renderCarousel();
+    adjustMapBoundsWithDelay();
+    setActiveLocation(index);
+
+
+  } catch(e) {
+    if (e instanceof Error) {
+        handleError(e, `Could not find a replacement. Please try again or reset your plan. Error: ${e.message}`);
+    } else {
+        handleError(e, "An unknown error occurred while finding a replacement.");
+    }
+  } finally {
+    card.classList.remove('is-replacing');
+  }
 }
 
 function exportDayPlan() {
