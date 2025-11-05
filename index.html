@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="index.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script type="importmap">
       {
         "imports": {
@@ -15,21 +16,21 @@
   </head>
   <body data-theme="light">
     <!-- Main container for the map and related UI elements -->
-    <div id="map-container" class="map-container">
-      <div id="map"></div>
-      <div id="map-loader" class="map-loader hidden">
-        <div class="spinner"></div>
+    <div id="app-container">
+      <div id="map-container" class="map-container">
+        <div id="map"></div>
+        <div id="map-loader" class="map-loader hidden">
+          <div class="spinner"></div>
+        </div>
       </div>
 
-      <!-- Control panel for trip planning -->
+      <!-- Control panel for trip planning (Side panel on desktop, Bottom Sheet on mobile) -->
       <div id="control-panel" class="control-panel">
         <div class="panel-header">
-          <h2 class="panel-title">Madurai Itinerary Planner</h2>
-          <div class="panel-header-controls">
-            <button id="collapse-panel" class="collapse-button" aria-label="Collapse panel">
-               <i class="fas fa-chevron-left"></i>
-            </button>
-          </div>
+          <h2 class="panel-title">Trip Planner</h2>
+          <button id="collapse-panel" class="icon-button" aria-label="Collapse panel">
+            <i class="fas fa-chevron-left"></i>
+          </button>
         </div>
         <div class="panel-content">
           <div class="trip-inputs">
@@ -52,11 +53,11 @@
             </div>
           </div>
           <div class="action-buttons">
-            <button id="generate" class="generate-button">
+            <button id="generate" class="filled-button">
               <span class="button-text">Generate Itinerary</span>
               <div class="spinner"></div>
             </button>
-             <button id="surprise-me-button" class="secondary-button surprise-button">
+             <button id="surprise-me-button" class="outlined-button surprise-button">
               <i class="fas fa-magic"></i>
               <span class="button-text">Surprise Me</span>
               <div class="spinner"></div>
@@ -88,18 +89,18 @@
         </div>
       </div>
 
-       <!-- Button to show the control panel when it's collapsed -->
-      <button id="show-controls-button" class="show-controls-button hidden" aria-label="Show controls">
-        <i class="fas fa-sliders-h"></i>
+      <!-- FAB to show the control panel on mobile -->
+      <button id="show-controls-button" class="fab primary-fab hidden" aria-label="Plan trip">
+        <i class="fas fa-edit"></i>
       </button>
 
-      <!-- Button to reset the map and clear current results -->
-      <button id="reset" class="reset-button" aria-label="Reset plan">
+      <!-- FAB to reset the map -->
+      <button id="reset" class="fab secondary-fab" aria-label="Reset plan">
         <i class="fas fa-undo"></i>
       </button>
 
-      <!-- Button to toggle the itinerary carousel view -->
-      <button id="toggle-carousel-button" class="toggle-carousel-button hidden" aria-label="Toggle itinerary view">
+      <!-- FAB to toggle the itinerary carousel view -->
+      <button id="toggle-carousel-button" class="fab secondary-fab hidden" aria-label="Toggle itinerary view">
         <i class="fas fa-chevron-down"></i>
       </button>
       
@@ -109,7 +110,7 @@
           <h3 class="carousel-title">Your Itinerary</h3>
           <div class="carousel-actions">
              <div id="route-visibility-control" class="route-visibility-control hidden">
-              <button id="route-visibility-toggle-btn" class="secondary-button">
+              <button id="route-visibility-toggle-btn" class="text-button">
                 <i class="fas fa-route"></i> Routes
               </button>
               <div id="route-visibility-popover" class="route-visibility-popover hidden">
@@ -121,10 +122,10 @@
                 </div>
               </div>
             </div>
-            <button id="share-plan" class="secondary-button hidden">
+            <button id="share-plan" class="text-button hidden">
               <i class="fas fa-share-alt"></i> Share
             </button>
-            <button id="export-plan" class="secondary-button hidden">
+            <button id="export-plan" class="text-button hidden">
               <i class="fas fa-download"></i> Export
             </button>
           </div>
@@ -140,23 +141,20 @@
       <div id="food-modal" class="modal">
         <div class="modal-header">
           <h3>Select Food Preferences</h3>
-          <button id="close-modal-btn" class="close-button" aria-label="Close food selection modal">&times;</button>
+          <button id="close-modal-btn" class="icon-button" aria-label="Close food selection modal"><i class="fas fa-times"></i></button>
         </div>
         <div class="modal-body" id="food-categories-container">
           <!-- Food category checkboxes will be inserted here -->
         </div>
         <div class="modal-footer">
-          <button id="cancel-food-selection" class="modal-button secondary">Cancel</button>
-          <button id="confirm-food-selection" class="modal-button primary">Confirm</button>
+          <button id="cancel-food-selection" class="text-button">Cancel</button>
+          <button id="confirm-food-selection" class="filled-button">Confirm</button>
         </div>
       </div>
     </div>
 
-
-    <!-- Semi-transparent overlay for mobile contexts (if needed in future) -->
-    <div class="map-overlay" id="map-overlay"></div>
-
-    <div id="spinner" class="hidden spinner"></div>
+    <!-- Scrim for modal/bottom sheet overlays -->
+    <div id="scrim" class="scrim hidden"></div>
 
     <!-- Third-party library for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -193,7 +191,8 @@
                   k.replace(/[A-Z]/g, (t) => "_" + t[0].toLowerCase()),
                   g[k],
                 );
-              e.set("callback", c + ".maps." + q);
+              e.set("callback", c + ".maps."
++ q);
               a.src = `https://maps.${c}apis.com/maps/api/js?` + e;
               d[q] = f;
               a.onerror = () => (h = n(Error(p + " could not load.")));
@@ -205,5 +204,6 @@
           : (d[l] = (f, ...n) => r.add(f) && u().then(() => d[l](f, ...n)));
       })({ key: "AIzaSyCmKPfqghHeL0U5n70xENammTeTl8ngHrw", v: "weekly", language: "en" });
     </script>
+    <script type="module" src="index.tsx"></script>
   </body>
 </html>

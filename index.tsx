@@ -50,6 +50,7 @@ const PIN_BORDER_COLORS = [
     '#3949AB',
     '#00796B'
 ];
+const IS_MOBILE = window.innerWidth <= 768;
 
 
 // --- APPLICATION STATE ---
@@ -62,8 +63,10 @@ let dayPlanItinerary = [];
 let selectedPois = new Set<string>();
 let selectedFoodCategories = new Set<string>();
 let dayVisibilityState = {};
+let isPanelCollapsed = false;
 
 // --- DOM ELEMENT REFERENCES ---
+const appContainer = document.querySelector('#app-container');
 const generateButton = document.querySelector('#generate') as HTMLButtonElement;
 const surpriseMeButton = document.querySelector('#surprise-me-button') as HTMLButtonElement;
 const resetButton = document.querySelector('#reset') as HTMLButtonElement;
@@ -75,7 +78,6 @@ const sharePlanButton = document.querySelector(
 ) as HTMLButtonElement;
 const mapContainer = document.querySelector('#map-container') as HTMLDivElement;
 const mapLoader = document.querySelector('#map-loader') as HTMLDivElement;
-const spinner = document.querySelector('#spinner') as HTMLDivElement;
 const errorMessage = document.querySelector('#error-message') as HTMLDivElement;
 const daysInput = document.querySelector('#days-input') as HTMLInputElement;
 const poiChipsContainer = document.querySelector(
@@ -114,6 +116,7 @@ const closeModalButton = document.querySelector('#close-modal-btn') as HTMLButto
 const routeVisibilityControl = document.querySelector('#route-visibility-control') as HTMLDivElement;
 const routeVisibilityToggleBtn = document.querySelector('#route-visibility-toggle-btn') as HTMLButtonElement;
 const routeVisibilityPopover = document.querySelector('#route-visibility-popover') as HTMLDivElement;
+const scrim = document.querySelector('#scrim') as HTMLDivElement;
 
 
 // --- INITIALIZATION ---
@@ -216,11 +219,11 @@ function setupUI() {
     .sort();
     
   let chipsHtml = placeCategories
-    .map((poi) => `<div class="poi-chip" data-poi="${poi}">${poi}</div>`)
+    .map((poi) => `<div class="poi-chip" data-poi="${poi}"><i class="fas fa-check"></i>${poi}</div>`)
     .join('');
   
   // Add the special "Food" chip
-  chipsHtml += `<div class="poi-chip" data-poi="Food" id="food-chip">Food</div>`;
+  chipsHtml += `<div class="poi-chip" data-poi="Food" id="food-chip"><i class="fas fa-check"></i>Food</div>`;
   
   poiChipsContainer.innerHTML = chipsHtml;
 
@@ -255,8 +258,13 @@ function setupUI() {
     sharePlanButton.title = 'Web Share API not supported in this browser.';
   }
 
-  // Set initial panel state
-  mapContainer.classList.add('map-container-controls-open');
+  // Set initial panel state using the state management function
+  // to ensure UI consistency on load.
+  if (IS_MOBILE) {
+    setPanelCollapsed(true); // Collapse on mobile, shows the FAB
+  } else {
+    setPanelCollapsed(false); // Expand on desktop, hides the FAB
+  }
 }
 
 function showMapLoader() {
@@ -308,6 +316,22 @@ function closeFoodModal() {
   foodModalOverlay.classList.add('hidden');
 }
 
+function setPanelCollapsed(collapsed: boolean) {
+    isPanelCollapsed = collapsed;
+    controlPanel.classList.toggle('collapsed', collapsed);
+    
+    if (IS_MOBILE) {
+        scrim.classList.toggle('hidden', collapsed);
+        showControlsButton.classList.toggle('hidden', !collapsed);
+        document.body.classList.toggle('no-scroll', !collapsed);
+    } else {
+        appContainer.classList.toggle('controls-open', !collapsed);
+        showControlsButton.classList.toggle('hidden', !collapsed);
+    }
+    adjustMapBoundsWithDelay();
+}
+
+
 // --- EVENT LISTENERS ---
 function addEventListeners() {
   generateButton.addEventListener('click', (e) => {
@@ -326,15 +350,16 @@ function addEventListeners() {
 
   poiChipsContainer.addEventListener('click', (e) => {
     const target = e.target as HTMLDivElement;
-    if (target.classList.contains('poi-chip')) {
-      const poi = target.dataset.poi;
+    const chip = target.closest('.poi-chip') as HTMLDivElement;
+    if (chip) {
+      const poi = chip.dataset.poi;
 
       if (poi === 'Food') {
         openFoodModal();
         return; // Prevent default chip selection logic
       }
 
-      target.classList.toggle('active');
+      chip.classList.toggle('active');
       if (selectedPois.has(poi)) {
         selectedPois.delete(poi);
       } else {
@@ -371,33 +396,28 @@ function addEventListeners() {
   gestureHandlingToggle.addEventListener('change', updateMapOptions);
 
   collapsePanelButton.addEventListener('click', () => {
-    controlPanel.classList.add('collapsed');
-    showControlsButton.classList.remove('hidden');
-    mapContainer.classList.remove('map-container-controls-open');
-    adjustMapBoundsWithDelay();
+    setPanelCollapsed(true);
   });
 
   showControlsButton.addEventListener('click', () => {
-    controlPanel.classList.remove('collapsed');
-    showControlsButton.classList.add('hidden');
-    mapContainer.classList.add('map-container-controls-open');
-    adjustMapBoundsWithDelay();
+    setPanelCollapsed(false);
+  });
+  
+  scrim.addEventListener('click', () => {
+      if (IS_MOBILE && !isPanelCollapsed) {
+          setPanelCollapsed(true);
+      }
   });
 
+
   toggleCarouselButton.addEventListener('click', (e) => {
-    locationCarousel.classList.toggle('hidden');
-    mapContainer.classList.toggle('map-container-carousel-open');
+    const isHidden = locationCarousel.classList.toggle('hidden');
+    toggleCarouselButton.classList.toggle('carousel-visible', !isHidden);
+    
     const icon = (e.currentTarget as HTMLElement).querySelector('i');
     if (icon) {
-      icon.className = locationCarousel.classList.contains('hidden')
-        ? 'fas fa-chevron-up'
-        : 'fas fa-chevron-down';
+      icon.className = isHidden ? 'fas fa-chevron-up' : 'fas fa-chevron-down';
     }
-    // Adjust button position and map bounds after transition
-    (e.currentTarget as HTMLElement).style.transform =
-      locationCarousel.classList.contains('hidden')
-        ? 'translateY(-240px)'
-        : 'translateY(0)';
     adjustMapBoundsWithDelay();
   });
 
@@ -433,13 +453,14 @@ function addEventListeners() {
     // "Show more" button
     if (target.classList.contains('show-more-btn')) {
       e.stopPropagation(); // Prevent card click from firing and panning the map
-      const description = target.previousElementSibling;
-      if (
-        description &&
-        description.classList.contains('card-description')
-      ) {
-        const isExpanded = description.classList.toggle('expanded');
-        target.textContent = isExpanded ? 'Show less' : 'Show more';
+      // Fix: 'card' was not defined. Get the parent card element.
+      const card = target.closest('.location-card');
+      if (card) {
+        const description = card.querySelector('.card-description');
+        if (description) {
+          const isExpanded = description.classList.toggle('expanded');
+          target.textContent = isExpanded ? 'Show less' : 'Show more';
+        }
       }
     }
 
@@ -447,9 +468,13 @@ function addEventListeners() {
     const replaceBtn = target.closest('.replace-location-btn');
     if (replaceBtn) {
       e.stopPropagation();
-      const index = parseInt(replaceBtn.getAttribute('data-index'), 10);
-      if (!isNaN(index)) {
-        handleReplaceLocation(index);
+      const card = (replaceBtn as HTMLElement).closest('.location-card');
+      // Fix: 'card' is of type 'Element' and can be null. Check and cast to HTMLElement to access dataset.
+      if (card instanceof HTMLElement) {
+        const index = parseInt(card.dataset.index, 10);
+        if (!isNaN(index)) {
+          handleReplaceLocation(index);
+        }
       }
     }
   });
@@ -532,13 +557,14 @@ function clearResults() {
   exportPlanButton.classList.add('hidden');
   sharePlanButton.classList.add('hidden');
   toggleCarouselButton.classList.add('hidden');
+  toggleCarouselButton.classList.remove('carousel-visible');
+
   routeVisibilityControl.classList.add('hidden');
   routeVisibilityPopover.classList.add('hidden');
   dayTogglesContainer.innerHTML = '';
 
   cardsContainer.innerHTML = '';
   locationCarousel.classList.add('hidden');
-  mapContainer.classList.remove('map-container-carousel-open');
 }
 
 function resetInputs() {
@@ -688,7 +714,6 @@ async function findLocationDetails(placeName: string) {
 
 
 async function sendText() {
-  spinner.classList.remove('hidden');
   errorMessage.innerHTML = '';
   clearResults();
 
@@ -775,7 +800,7 @@ async function sendText() {
       toggleCarouselButton.classList.remove('hidden');
 
       
-      collapsePanelButton.click();
+      setPanelCollapsed(true);
       
       adjustMapBoundsWithDelay();
       setActiveLocation(0, true);
@@ -803,7 +828,6 @@ async function sendText() {
     }
   } finally {
     generateButton.classList.remove('loading');
-    spinner.classList.add('hidden');
   }
 }
 
@@ -1175,8 +1199,8 @@ function renderCarousel() {
             ${typeTagHtml}
             <div class="card-header-actions">
                 <div class="card-time">${displayTime}</div>
-                <button class="replace-location-btn" data-index="${index}" aria-label="Replace this location" title="Find a replacement for ${item.name}">
-                <i class="fas fa-sync-alt"></i>
+                <button class="icon-button replace-location-btn" aria-label="Replace this location" title="Find a replacement for ${item.name}">
+                  <i class="fas fa-sync-alt"></i>
                 </button>
             </div>
         </div>
@@ -1206,7 +1230,8 @@ function renderCarousel() {
   });
 
   locationCarousel.classList.remove('hidden');
-  mapContainer.classList.add('map-container-carousel-open');
+  toggleCarouselButton.classList.add('carousel-visible');
+  toggleCarouselButton.querySelector('i').className = 'fas fa-chevron-down';
 }
 
 function renderDayToggles() {
@@ -1251,6 +1276,13 @@ function setActiveLocation(index: number, centerOnly = false) {
   map.panTo(location.position);
   if (!centerOnly) {
     map.setZoom(15);
+  }
+
+  // Adjust map center to account for carousel overlay.
+  // A positive y-value appears to pan the map content UP into the visible area.
+  if (!locationCarousel.classList.contains('hidden')) {
+      const carouselHeight = locationCarousel.offsetHeight;
+      map.panBy(0, carouselHeight / 2);
   }
 
   highlightCarouselCard(index);
